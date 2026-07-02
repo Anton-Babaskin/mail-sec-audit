@@ -16,7 +16,7 @@
 set -uo pipefail
 umask 077
 
-VERSION="2.2.0"
+VERSION="2.2.3"
 DAYS=7
 MAIL_TOP=20
 MAIL_HOST=""
@@ -176,30 +176,29 @@ collect_fallback_logs() {
 }
 
 extract_source_ips() {
-  # Извлекаем только адресоподобные токены и валидируем их. Это исключает
-  # ложные значения вроде "invalid", которые встречаются в строках sshd.
-  awk '{
-    for (i=1; i<=NF; i++) {
-      t=$i
-      gsub(/^[[(<]+|[]),;>]+$/, "", t)
-      sub(/^(rhost|rip|client|from)=/, "", t)
-      sub(/^.*\[/, "", t); sub(/\].*$/, "", t)
-      if (t ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/) print t
-      else if (t ~ /^[0-9A-Fa-f:]+$/ && t ~ /:/ && t !~ /^:+$/) print t
-    }
-  }' | while IFS= read -r ip; do
-    if have python3; then
-      python3 - "$ip" <<'PYIP' 2>/dev/null || true
-import ipaddress, sys
-try:
-    print(ipaddress.ip_address(sys.argv[1]))
-except ValueError:
-    pass
-PYIP
-    else
-      printf '%s\n' "$ip"
-    fi
-  done | sed '/^$/d' | sort | uniq -c | sort -rn
+  # Один Python-процесс обрабатывает весь поток. Не запускаем Python для каждого IP.
+  if have python3; then
+    python3 -c '
+import collections, ipaddress, re, sys
+counts = collections.Counter()
+ipv4 = re.compile(r"(?<![0-9A-Fa-f:])(?:\\d{1,3}\\.){3}\\d{1,3}(?![0-9A-Fa-f:])")
+ipv6 = re.compile(r"(?<![0-9A-Fa-f:])(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4}(?![0-9A-Fa-f:])")
+for line in sys.stdin:
+    seen = set()
+    for raw in ipv4.findall(line) + ipv6.findall(line):
+        try:
+            ip = str(ipaddress.ip_address(raw.strip("[](),;<>")))
+        except ValueError:
+            continue
+        if ip not in seen:
+            counts[ip] += 1
+            seen.add(ip)
+for ip, count in sorted(counts.items(), key=lambda x: (-x[1], x[0])):
+    print(f"{count:7d} {ip}")
+' 2>/dev/null
+  else
+    grep -oE '([0-9]{1,3}\\.){3}[0-9]{1,3}' | sort | uniq -c | sort -rn
+  fi
 }
 
 print_ip_table() {
@@ -755,17 +754,82 @@ if [[ ! -s "$ssh_log" ]]; then
   collect_fallback_logs "$ssh_log" '/var/log/auth.log*' '/var/log/secure*'
   info "SSH-статистика получена из файлов логов; точный период может отличаться от $DAYS дней"
 fi
-ssh_failed="$(grep -Eic 'Failed password|Invalid user|authentication failure|PAM.*failure' "$ssh_log" 2>/dev/null || true)"
-ssh_accepted="$(grep -Eic 'Accepted (publickey|password)' "$ssh_log" 2>/dev/null || true)"
-ssh_sessions="$(grep -Eic 'session opened for user' "$ssh_log" 2>/dev/null || true)"
+
+info "Анализирую SSH-события одним проходом..."
+if have python3; then
+  python3 - "$ssh_log" "$TMPROOT/ssh-top-ips.txt" "$TMPROOT/ssh-accepted-ips.txt" >"$TMPROOT/ssh-summary.txt" <<'PYSSH'
+import collections
+import ipaddress
+import re
+import sys
+
+log_file, failed_out, accepted_out = sys.argv[1:4]
+failed = accepted = sessions = 0
+failed_ips = collections.Counter()
+accepted_ips = collections.Counter()
+
+fail_re = re.compile(r'Failed password|Invalid user|authentication failure|PAM.*failure', re.I)
+accept_re = re.compile(r'Accepted (?:publickey|password)', re.I)
+session_re = re.compile(r'session opened for user', re.I)
+from_ip_re = re.compile(r'\\bfrom\\s+([^\\s]+)', re.I)
+rhost_re = re.compile(r'\\brhost=([^\\s]+)', re.I)
+
+
+def normalize(raw):
+    raw = raw.strip('[](),;<>')
+    if raw.startswith('::ffff:'):
+        raw = raw[7:]
+    try:
+        return str(ipaddress.ip_address(raw))
+    except ValueError:
+        return None
+
+with open(log_file, 'r', encoding='utf-8', errors='replace') as fh:
+    for line in fh:
+        is_fail = bool(fail_re.search(line))
+        is_accept = bool(accept_re.search(line))
+        if is_fail:
+            failed += 1
+        if is_accept:
+            accepted += 1
+        if session_re.search(line):
+            sessions += 1
+        if not (is_fail or is_accept):
+            continue
+        match = from_ip_re.search(line) or rhost_re.search(line)
+        if not match:
+            continue
+        ip = normalize(match.group(1))
+        if not ip:
+            continue
+        (failed_ips if is_fail else accepted_ips)[ip] += 1
+
+with open(failed_out, 'w', encoding='utf-8') as fh:
+    for ip, count in sorted(failed_ips.items(), key=lambda x: (-x[1], x[0])):
+        fh.write(f'{count:7d} {ip}\\n')
+with open(accepted_out, 'w', encoding='utf-8') as fh:
+    for ip, count in sorted(accepted_ips.items(), key=lambda x: (-x[1], x[0])):
+        fh.write(f'{count:7d} {ip}\\n')
+
+print(f'failed={failed}')
+print(f'accepted={accepted}')
+print(f'sessions={sessions}')
+PYSSH
+  ssh_failed="$(awk -F= '$1=="failed"{print $2}' "$TMPROOT/ssh-summary.txt")"
+  ssh_accepted="$(awk -F= '$1=="accepted"{print $2}' "$TMPROOT/ssh-summary.txt")"
+  ssh_sessions="$(awk -F= '$1=="sessions"{print $2}' "$TMPROOT/ssh-summary.txt")"
+else
+  ssh_failed="$(grep -Eic 'Failed password|Invalid user|authentication failure|PAM.*failure' "$ssh_log" 2>/dev/null || true)"
+  ssh_accepted="$(grep -Eic 'Accepted (publickey|password)' "$ssh_log" 2>/dev/null || true)"
+  ssh_sessions="$(grep -Eic 'session opened for user' "$ssh_log" 2>/dev/null || true)"
+  grep -Ei 'Failed password|Invalid user|authentication failure|PAM.*failure' "$ssh_log" 2>/dev/null | extract_source_ips >"$TMPROOT/ssh-top-ips.txt" || true
+  grep -Ei 'Accepted (publickey|password)' "$ssh_log" 2>/dev/null | extract_source_ips >"$TMPROOT/ssh-accepted-ips.txt" || true
+fi
+
 kv "SSH failed / invalid" "${ssh_failed:-0}"
 kv "SSH accepted logins" "${ssh_accepted:-0}"
 kv "SSH sessions opened" "${ssh_sessions:-0}"
-grep -Ei 'Failed password|Invalid user|authentication failure|PAM.*failure' "$ssh_log" 2>/dev/null \
-  | extract_source_ips >"$TMPROOT/ssh-top-ips.txt" || true
 print_ip_table "$TMPROOT/ssh-top-ips.txt" "Top source IPs — SSH failures"
-grep -Ei 'Accepted (publickey|password)' "$ssh_log" 2>/dev/null \
-  | extract_source_ips >"$TMPROOT/ssh-accepted-ips.txt" || true
 print_ip_table "$TMPROOT/ssh-accepted-ips.txt" "Top source IPs — successful SSH logins"
 ssh_rate=$(( ${ssh_failed:-0} / (DAYS > 0 ? DAYS : 1) ))
 (( ssh_rate > 100 )) && warn "Высокая интенсивность SSH failures: около $ssh_rate событий/сутки" || true
@@ -776,28 +840,49 @@ if [[ ! -s "$mail_log" ]]; then
   collect_fallback_logs "$mail_log" '/var/log/mail.log*' '/var/log/maillog*' '/var/log/exim4/mainlog*' '/var/log/exim/mainlog*'
   info "Почтовая статистика получена из файлов логов; точный период может отличаться от $DAYS дней"
 fi
+info "Анализирую ошибки почтовой авторизации..."
 mail_auth_failed="$(grep -Eic 'SASL.*authentication failed|auth failed|authentication failure|Aborted login|LOGIN FAILED|535[ -].*auth|authenticator failed' "$mail_log" 2>/dev/null || true)"
 kv "Mail auth failures" "${mail_auth_failed:-0}"
-grep -Ei 'SASL.*authentication failed|auth failed|authentication failure|Aborted login|LOGIN FAILED|535[ -].*auth|authenticator failed' "$mail_log" 2>/dev/null \
-  | extract_source_ips >"$TMPROOT/mail-top-ips.txt" || true
+grep -Ei 'SASL.*authentication failed|auth failed|authentication failure|Aborted login|LOGIN FAILED|535[ -].*auth|authenticator failed' "$mail_log" 2>/dev/null | extract_source_ips >"$TMPROOT/mail-top-ips.txt" || true
 print_ip_table "$TMPROOT/mail-top-ips.txt" "Top source IPs — mail authentication failures"
 mail_rate=$(( ${mail_auth_failed:-0} / (DAYS > 0 ? DAYS : 1) ))
 (( mail_rate > 300 )) && warn "Высокая интенсивность mail auth failures: около $mail_rate событий/сутки" || true
 
 
 section "MAIL FLOW ANALYTICS"
-if [[ "$MTA" == "postfix" && -s "$mail_log" ]]; then
-  analyze_postfix_mail_flow "$mail_log" "$TMPROOT"
-  incoming_total="$(awk -F= '$1=="incoming"{print $2}' "$TMPROOT/mail-flow-summary.txt" 2>/dev/null || echo 0)"
-  outgoing_total="$(awk -F= '$1=="outgoing"{print $2}' "$TMPROOT/mail-flow-summary.txt" 2>/dev/null || echo 0)"
-  incoming_unique="$(wc -l <"$TMPROOT/incoming-domains.txt" 2>/dev/null | tr -d ' ' || echo 0)"
-  outgoing_unique="$(wc -l <"$TMPROOT/outgoing-domains.txt" 2>/dev/null | tr -d ' ' || echo 0)"
+if [[ "$MTA" == "postfix" ]]; then
+  # Для корреляции Postfix Queue ID нужны полные строки вида postfix/qmgr и
+  # postfix/smtp. journalctl -o cat удаляет этот префикс, поэтому статистика
+  # могла показывать нули. Для mail-flow сначала читаем обычные mail.log*,
+  # как делал исходный mail_analyzer.sh, и только затем используем journal.
+  flow_log="$TMPROOT/mail-flow.log"
+  collect_fallback_logs "$flow_log" '/var/log/mail.log*' '/var/log/maillog*'
 
-  kv "Incoming delivered" "${incoming_total:-0} message(s), ${incoming_unique:-0} unique sender domain(s)"
-  kv "Outgoing delivered" "${outgoing_total:-0} message(s), ${outgoing_unique:-0} unique recipient domain(s)"
-  print_domain_table "$TMPROOT/incoming-domains.txt" "Top incoming domains — откуда пришли успешно доставленные письма"
-  print_domain_table "$TMPROOT/outgoing-domains.txt" "Top outgoing domains — куда успешно отправлены письма"
-  info "Статистика построена по Postfix status=sent за доступный период логов; bounce-сообщения без sender domain исключены"
+  if [[ ! -s "$flow_log" ]] && have journalctl; then
+    journalctl --since "$DAYS days ago" --no-pager -o short-iso       -u postfix.service >"$flow_log" 2>/dev/null || true
+  fi
+
+  if [[ -s "$flow_log" ]]; then
+    analyze_postfix_mail_flow "$flow_log" "$TMPROOT"
+    incoming_total="$(awk -F= '$1=="incoming"{print $2}' "$TMPROOT/mail-flow-summary.txt" 2>/dev/null || echo 0)"
+    outgoing_total="$(awk -F= '$1=="outgoing"{print $2}' "$TMPROOT/mail-flow-summary.txt" 2>/dev/null || echo 0)"
+    incoming_unique="$(wc -l <"$TMPROOT/incoming-domains.txt" 2>/dev/null | tr -d ' ' || echo 0)"
+    outgoing_unique="$(wc -l <"$TMPROOT/outgoing-domains.txt" 2>/dev/null | tr -d ' ' || echo 0)"
+
+    kv "Incoming delivered" "${incoming_total:-0} message(s), ${incoming_unique:-0} unique sender domain(s)"
+    kv "Outgoing delivered" "${outgoing_total:-0} message(s), ${outgoing_unique:-0} unique recipient domain(s)"
+    print_domain_table "$TMPROOT/incoming-domains.txt" "Top incoming domains — откуда пришли успешно доставленные письма"
+    print_domain_table "$TMPROOT/outgoing-domains.txt" "Top outgoing domains — куда успешно отправлены письма"
+
+    if [[ "${incoming_total:-0}" == 0 && "${outgoing_total:-0}" == 0 ]]; then
+      warn "В логах не найдены связанные Postfix qmgr + status=sent события; проверь наличие /var/log/mail.log* и формат логов"
+    else
+      pass "Mail-flow статистика успешно построена по Postfix Queue ID"
+    fi
+    info "Статистика построена по доступным Postfix mail.log*; ротационные .gz также учитываются"
+  else
+    warn "Postfix обнаружен, но mail.log/maillog для анализа трафика не найдены"
+  fi
 else
   info "Mail flow analytics сейчас поддерживает Postfix; для $MTA раздел пропущен"
 fi
