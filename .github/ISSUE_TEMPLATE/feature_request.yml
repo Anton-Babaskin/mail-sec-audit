@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest an improvement or a new audit check.
+title: "Feature: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What operational or security gap should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the desired behavior.
+    validations:
+      required: true
+  - type: dropdown
+    id: safety
+    attributes:
+      label: Does this require write actions?
+      options:
+        - "No, read-only audit/reporting only"
+        - "Yes, but behind an explicit opt-in"
+        - "Not sure"
+    validations:
+      required: true
+

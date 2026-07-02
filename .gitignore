@@ -1,0 +1,41 @@
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor and IDE state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs and generated reports
+*.log
+*.out
+*.err
+reports/
+*.report
+mail-sec-audit-*.txt
+mail-sec-audit-*.log
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+*.tmp
+*.bak
+*.orig
+
+# Test and coverage artifacts
+coverage/
+.coverage
+.pytest_cache/
+.shellcheckrc.local
+
+# Local environment
+.env
+.env.*
+!.env.example
+examples/*.local
+
