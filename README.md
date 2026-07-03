@@ -1,353 +1,133 @@
-# 🛡️ Mail Security Audit
+# Mail Security Audit
 
 <p align="center">
-  <strong>Universal security audit script for Linux mail servers</strong>
+  <strong>Read-only security and operations audit for Linux mail servers.</strong>
 </p>
 
 <p align="center">
-  Postfix • Exim • Dovecot • Fail2ban • UFW • nftables • TLS • DNS • Mail Logs
+  Postfix · Exim · Dovecot · Fail2ban · UFW · nftables · TLS · DNS · Mail Logs
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Bash-5%2B-4EAA25?logo=gnubash&logoColor=white" alt="Bash">
-  <img src="https://img.shields.io/badge/Linux-Debian%20%7C%20Ubuntu-FCC624?logo=linux&logoColor=black" alt="Linux">
-  <img src="https://img.shields.io/badge/Mode-Read--only%20by%20default-2ea44f" alt="Read-only">
-  <img src="https://img.shields.io/badge/Status-Active-blue" alt="Status">
+  <a href="https://github.com/Anton-Babaskin/mail-sec-audit/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/Anton-Babaskin/mail-sec-audit/ci.yml?branch=main&label=CI" alt="CI">
+  </a>
+  <img src="https://img.shields.io/badge/Bash-5%2B-4EAA25?logo=gnubash&logoColor=white" alt="Bash 5+">
+  <img src="https://img.shields.io/badge/Linux-Debian%20%7C%20Ubuntu-FCC624?logo=linux&logoColor=black" alt="Debian and Ubuntu">
+  <img src="https://img.shields.io/badge/Mode-read--only%20by%20default-2ea44f" alt="Read-only by default">
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT License">
 </p>
 
 <p align="center">
-  <a href="README_RU.md">🇷🇺 Русская версия</a>
+  <a href="README.md">English</a> · <a href="README_RU.md">Русский</a>
 </p>
 
 ---
 
-## 📖 Overview
+## Overview
 
-**Mail Security Audit** is a universal Bash script for auditing the security and operational state of Linux mail servers.
+**Mail Security Audit** is a single-file Bash tool for checking the security posture and operational health of Linux mail servers. It detects the installed mail stack, reviews SSH and firewall exposure, analyzes authentication failures, checks TLS and DNS, inspects mail queues, and summarizes findings in a clear terminal report.
 
-It automatically detects the installed mail stack, analyzes system security, checks exposed services, reviews authentication failures, validates TLS and DNS settings, inspects mail queues, and displays the results in a clear colorized interface.
+The default mode is safe for production diagnostics: it reads system state and prints findings. It does not change firewall rules, restart services, install packages, edit mail server configuration, or automatically block IP addresses.
 
-> 🟢 The audit is read-only by default.  
-> 🔴 Firewall rules and mail server settings are not modified automatically.
+## What It Checks
 
----
+| Area | Coverage |
+|---|---|
+| System health | OS, kernel, pending updates, reboot-required state, failed services, disk and inode usage |
+| SSH security | Effective `sshd` settings, root login, password auth, SSH keys, successful and failed logins |
+| Network exposure | Listening ports, public services, unexpected ports, database ports exposed externally |
+| Firewall | UFW, nftables, iptables policies, Fail2ban firewall chains |
+| Brute-force defense | Fail2ban jails and counters, CrowdSec and sshguard detection, safe manual ban menu |
+| Mail stack | Postfix, Exim, Sendmail, OpenSMTPD, Dovecot, Courier detection |
+| Mail auth | Dovecot and Postfix SASL failures, top attacking IPv4 and IPv6 addresses |
+| Mail flow | Postfix sender and recipient domain statistics, delivery stats, Queue ID correlation |
+| Queue state | Postfix and Exim queue size, deferred mail, warning thresholds |
+| Relay safety | Postfix relay restrictions, `mynetworks`, `reject_unauth_destination`, Exim relay hints |
+| TLS | HTTPS, SMTP, IMAP, POP3 STARTTLS, certificate identity, issuer, expiry, legacy TLS in deep mode |
+| DNS | MX, SPF, DMARC, DKIM selector, PTR, mail hostname validation |
+| Integrity | SUID/SGID checks, world-writable files, package integrity, cron, timers, backup tooling |
 
-## ✨ Features
+## Quick Start
 
-### 🖥️ System and updates
-
-- Operating system and kernel information
-- Pending package updates
-- Automatic security update status
-- Reboot-required detection
-- Failed systemd services
-- Disk space and inode usage
-
-### 🔐 SSH security
-
-- Effective `sshd` configuration
-- Root login and password authentication status
-- Public-key authentication status
-- Successful and failed SSH logins
-- Top attacking IP addresses
-- Recent login history
-- Suspicious UID `0` accounts
-- SSH authorized-key inspection
-
-### 🌐 Network and firewall
-
-- Listening TCP and UDP ports
-- Publicly exposed services
-- Unexpected port detection
-- UFW, nftables and iptables detection
-- INPUT, OUTPUT and FORWARD policies
-- Fail2ban firewall chains
-- Detection of dangerous database ports exposed publicly
-
-### 🚫 Brute-force protection
-
-- Fail2ban service and jail status
-- Current and total banned IP statistics
-- CrowdSec and sshguard detection
-- Interactive IP ban and unban menu
-- Protection against banning the current SSH client IP
-- Explicit confirmation before every ban operation
-
-### 📧 Mail server detection
-
-Supported and automatically detected components:
-
-- Postfix
-- Exim
-- Sendmail
-- OpenSMTPD
-- Dovecot
-- Courier
-
-### 📊 Mail authentication analysis
-
-- Dovecot authentication failures
-- Postfix SASL authentication failures
-- Top attacking IPv4 and IPv6 addresses
-- Authentication statistics for a selected period
-
-### 📬 Mail flow analytics
-
-For Postfix servers:
-
-- Top incoming sender domains
-- Top outgoing recipient domains
-- Successful delivery statistics
-- Unique sender and recipient domain counts
-- Queue-ID correlation between Postfix log events
-- Configurable top-domain limit
-
-### 📦 Mail queue analysis
-
-- Current Postfix or Exim queue size
-- Deferred message detection
-- Warning thresholds for large queues
-
-### 🔁 Relay security
-
-- Postfix relay restriction analysis
-- `mynetworks` inspection
-- `reject_unauth_destination` validation
-- Exim relay configuration detection
-- Reminder that a real open-relay test must be performed externally
-
-### 🔒 TLS and certificates
-
-- HTTPS certificate inspection
-- SMTP, IMAP and POP3 STARTTLS checks
-- Certificate subject, issuer and expiration
-- Hostname validation
-- Remaining certificate lifetime
-- Legacy TLS protocol detection in deep mode
-
-### 🌍 DNS and email authentication
-
-- MX record checks
-- SPF record detection
-- DMARC policy detection
-- DKIM selector lookup
-- PTR reverse-DNS inspection
-- Mail-hostname validation
-
-### 🧩 System integrity
-
-- SUID binary detection
-- SGID checks in deep mode
-- World-writable file detection
-- Package-integrity checks
-- Recently modified system files
-- Cron and systemd timer inspection
-- Backup tool and job detection
-
----
-
-## 🚀 Quick start
-
-### 1. Create the script
+Clone the repository and run the script on the mail server:
 
 ```bash
-nano mail-sec-audit.sh
-```
-
-Paste the script and save:
-
-```text
-Ctrl+O
-Enter
-Ctrl+X
-```
-
-### 2. Set permissions
-
-```bash
+git clone https://github.com/Anton-Babaskin/mail-sec-audit.git
+cd mail-sec-audit
 chmod 700 mail-sec-audit.sh
-```
-
-### 3. Run the audit
-
-```bash
 sudo ./mail-sec-audit.sh
 ```
 
----
-
-## ⚙️ Usage examples
-
-### Basic audit
-
-```bash
-sudo ./mail-sec-audit.sh
-```
-
-### Audit the last 7 days
-
-```bash
-sudo ./mail-sec-audit.sh --days 7
-```
-
-### Audit a specific mail server
-
-```bash
-sudo ./mail-sec-audit.sh \
-  --days 7 \
-  --hostname mail.example.com \
-  --domain example.com
-```
-
-### Extended output
+Run a domain-aware audit:
 
 ```bash
 sudo ./mail-sec-audit.sh \
   --days 7 \
   --hostname mail.example.com \
   --domain example.com \
-  --verbose
+  --dkim-selector default
 ```
 
-### Interactive Fail2ban menu
-
-```bash
-sudo ./mail-sec-audit.sh \
-  --days 7 \
-  --hostname mail.example.com \
-  --domain example.com \
-  --interactive
-```
-
-### Display top 100 mail domains
-
-```bash
-sudo ./mail-sec-audit.sh \
-  --days 30 \
-  --hostname mail.example.com \
-  --domain example.com \
-  --mail-top 100
-```
-
-### Check a DKIM selector
+Save a local report:
 
 ```bash
 sudo ./mail-sec-audit.sh \
   --hostname mail.example.com \
   --domain example.com \
-  --dkim-selector mail
+  --report ./reports/mail-audit-$(date +%F).log
 ```
 
-### Save an audit report
+Reports may contain sensitive operational data. The `reports/` directory is ignored by git.
 
-```bash
-sudo ./mail-sec-audit.sh \
-  --days 7 \
-  --hostname mail.example.com \
-  --domain example.com \
-  --report /root/mail-audit-$(date +%F).log
-```
-
-### Deep audit
-
-```bash
-sudo ./mail-sec-audit.sh \
-  --deep \
-  --days 30 \
-  --hostname mail.example.com \
-  --domain example.com
-```
-
----
-
-## 🎛️ Main options
+## Options
 
 | Option | Description |
 |---|---|
-| `--days N` | Analyze logs for the last `N` days |
-| `--hostname HOST` | Mail server hostname |
-| `--domain DOMAIN` | Primary email domain |
-| `--dkim-selector NAME` | DKIM selector to check |
-| `--mail-top N` | Number of incoming and outgoing domains to display |
-| `--verbose` | Show extended diagnostic information |
-| `--interactive` | Open the interactive Fail2ban menu |
+| `--days N` | Analyze logs for the last `N` days. Default: `7` |
+| `--hostname HOST` | Mail server FQDN used for TLS checks |
+| `--domain DOMAIN` | Primary mail domain used for DNS checks |
+| `--dkim-selector NAME` | DKIM selector for DNS lookup |
+| `--mail-top N` | Number of sender and recipient domains to display. Default: `20` |
+| `--verbose` | Show extended diagnostic output |
+| `--interactive` | Open the manual Fail2ban IP management menu |
 | `--deep` | Run slower and more detailed checks |
-| `--report FILE` | Save the audit output to a file |
-| `--no-color` | Disable terminal colors |
-| `--help` | Display usage information |
+| `--report FILE` | Save audit output to a file |
+| `--no-color` | Disable ANSI colors |
+| `-h`, `--help` | Print help |
 
----
-
-## 🎨 Status indicators
-
-```text
-[  OK  ] Check passed
-[ INFO ] Informational result
-[ WARN ] Review recommended
-[ FAIL ] Critical security or configuration issue
-```
-
----
-
-## 🚫 Interactive IP management
-
-```bash
-sudo ./mail-sec-audit.sh --interactive
-```
-
-Available actions:
-
-```text
-1) Ban an IP address in a selected Fail2ban jail
-2) Unban an IP address from all Fail2ban jails
-3) Display currently banned IP addresses
-0) Exit without changes
-```
-
-Before blocking an address, the script checks that it is not:
-
-- the current SSH client IP;
-- a local server IP;
-- a loopback address;
-- a private network address;
-- a link-local address;
-- a multicast address.
-
-Every ban requires explicit confirmation.
-
----
-
-## 🔌 Allowed custom ports
-
-```bash
-sudo MAIL_AUDIT_ALLOWED_PORTS="10050 9100" \
-  ./mail-sec-audit.sh \
-  --hostname mail.example.com \
-  --domain example.com
-```
-
----
-
-## 📤 Exit codes
+## Exit Codes
 
 | Code | Meaning |
 |---:|---|
-| `0` | Audit completed without warnings |
-| `1` | One or more warnings found |
-| `2` | One or more critical issues found |
+| `0` | Audit completed without warnings or critical findings |
+| `1` | One or more warnings were found |
+| `2` | One or more critical findings were found |
 
----
+## Safety Model
 
-## 🧰 Requirements
+Normal audit mode does not:
 
-Recommended environment:
+- modify firewall rules;
+- restart services;
+- install packages;
+- change SSH, Postfix, Exim, Dovecot, or DNS configuration;
+- delete mail queue messages;
+- automatically ban or unban IP addresses.
 
-- Debian
-- Ubuntu
-- Bash 5+
-- Root privileges
+The only write-capable workflow is the explicit interactive Fail2ban menu. Every action requires confirmation, and the script protects the current SSH client IP from accidental blocking.
 
-Optional utilities:
+See [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md) for more detail.
+
+## Requirements
+
+Recommended runtime:
+
+- Debian or Ubuntu;
+- Bash 5 or newer;
+- root privileges for complete audit coverage.
+
+Optional tools improve coverage when available:
 
 ```text
 openssl
@@ -363,86 +143,66 @@ postqueue
 doveconf
 ```
 
-Unavailable checks are skipped without terminating the audit.
+Unavailable checks are skipped instead of stopping the audit.
 
----
+## Project Structure
 
-## 🛡️ Safety model
+```text
+.
+├── mail-sec-audit.sh          # Main audit script
+├── README.md                  # English documentation
+├── README_RU.md               # Russian documentation
+├── docs/                      # Detailed guides and project notes
+├── examples/                  # Example environment snippets
+├── tests/                     # Smoke tests
+├── .github/                   # CI, issue templates, PR template
+├── CONTRIBUTING.md            # Contribution guide
+├── SECURITY.md                # Vulnerability reporting policy
+├── CHANGELOG.md               # Release notes
+└── LICENSE                    # MIT License
+```
 
-Normal audit mode does not:
+## Documentation
 
-- modify firewall rules;
-- restart services;
-- install packages;
-- change SSH configuration;
-- change Postfix or Dovecot configuration;
-- delete mail queue messages;
-- automatically block IP addresses.
+- [Usage guide](docs/USAGE.md)
+- [Security model](docs/SECURITY_MODEL.md)
+- [Development guide](docs/DEVELOPMENT.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
-The only write operation is manual IP management through the interactive Fail2ban menu.
+## Development
 
----
+Run local checks before opening a pull request:
 
-## 🗺️ Project roadmap
+```bash
+bash -n mail-sec-audit.sh
+bash tests/smoke.sh
+shellcheck mail-sec-audit.sh tests/*.sh
+```
 
-### 🌐 `mail-external-audit`
+GitHub Actions runs the same baseline checks on pushes and pull requests.
 
-External mail-server testing from another VPS:
+## Roadmap
 
-- real open-relay testing;
-- external SMTP and IMAP TLS checks;
-- certificate-chain validation;
-- SMTP banner analysis;
-- PTR and forward-confirmed reverse DNS;
-- RBL blacklist checks;
-- external port availability;
-- authentication exposure detection.
+Planned companion tools:
 
-### 📡 `mail-audit-collector`
+- `mail-external-audit`: external relay, TLS, banner, DNS, RBL, and port checks from another host;
+- `mail-audit-collector`: centralized collection, baseline comparison, JSON output, fleet reporting, and notifications.
 
-Centralized audit collection:
+## Important Notes
 
-- collect results from multiple servers;
-- compare server baselines;
-- detect new ports and SSH keys;
-- identify firewall changes;
-- create centralized reports;
-- send Telegram notifications;
-- provide JSON output;
-- produce fleet-wide security summaries.
-
----
-
-## ⚠️ Important notes
-
-- Local configuration analysis cannot replace an external open-relay test.
-- A high number of failed login events does not necessarily mean the same number of unique attackers.
-- Fail2ban counters may include addresses that were already unbanned.
-- Mail-flow analytics is currently most detailed on Postfix servers.
+- Local configuration analysis does not replace an external open-relay test.
+- Failed login counts do not always equal unique attacker counts.
+- Fail2ban counters can include addresses that were already unbanned.
+- Mail-flow analytics is currently most detailed for Postfix.
 - Always verify an IP address before manually blocking it.
 
----
+## License
 
-## 🤝 Contributing
+This project is distributed under the [MIT License](LICENSE).
 
-Bug reports, improvements, support for additional mail servers and pull requests are welcome.
+## Author
 
----
-
-## 📄 License
-
-This project is distributed under the MIT License.
-
----
-
-## 👤 Author
-
-**Anton Babaskin**
-
+**Anton Babaskin**  
 GitHub: [@Anton-Babaskin](https://github.com/Anton-Babaskin)
 
----
-
-<p align="center">
-  🛡️ Secure • 📊 Analyze • 🔍 Detect • 🚫 Protect
-</p>

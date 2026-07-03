@@ -1,354 +1,133 @@
-# 🛡️ Mail Security Audit
+# Mail Security Audit
 
 <p align="center">
-  <strong>Универсальный скрипт аудита безопасности почтовых серверов Linux</strong>
+  <strong>Read-only аудит безопасности и рабочего состояния почтовых серверов Linux.</strong>
 </p>
 
 <p align="center">
-  Postfix • Exim • Dovecot • Fail2ban • UFW • nftables • TLS • DNS • Почтовые логи
+  Postfix · Exim · Dovecot · Fail2ban · UFW · nftables · TLS · DNS · Почтовые логи
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Bash-5%2B-4EAA25?logo=gnubash&logoColor=white" alt="Bash">
-  <img src="https://img.shields.io/badge/Linux-Debian%20%7C%20Ubuntu-FCC624?logo=linux&logoColor=black" alt="Linux">
-  <img src="https://img.shields.io/badge/Режим-Только%20чтение%20по%20умолчанию-2ea44f" alt="Только чтение">
-  <img src="https://img.shields.io/badge/Статус-Активная%20разработка-blue" alt="Статус">
+  <a href="https://github.com/Anton-Babaskin/mail-sec-audit/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/Anton-Babaskin/mail-sec-audit/ci.yml?branch=main&label=CI" alt="CI">
+  </a>
+  <img src="https://img.shields.io/badge/Bash-5%2B-4EAA25?logo=gnubash&logoColor=white" alt="Bash 5+">
+  <img src="https://img.shields.io/badge/Linux-Debian%20%7C%20Ubuntu-FCC624?logo=linux&logoColor=black" alt="Debian и Ubuntu">
+  <img src="https://img.shields.io/badge/Mode-read--only%20by%20default-2ea44f" alt="Read-only by default">
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT License">
 </p>
 
 <p align="center">
-  <a href="README.md">🇬🇧 English version</a>
+  <a href="README.md">English</a> · <a href="README_RU.md">Русский</a>
 </p>
 
 ---
 
-## 📖 О проекте
+## Обзор
 
-**Mail Security Audit** — универсальный Bash-скрипт для проверки безопасности и рабочего состояния почтовых серверов Linux.
+**Mail Security Audit** — single-file Bash-инструмент для проверки безопасности и рабочего состояния Linux-почтовых серверов. Он определяет установленный почтовый стек, проверяет SSH и сетевую доступность, анализирует ошибки авторизации, проверяет TLS и DNS, смотрит почтовые очереди и собирает понятный терминальный отчёт.
 
-Он автоматически определяет установленный почтовый стек, анализирует безопасность системы, проверяет доступные снаружи сервисы, изучает ошибки авторизации, проверяет TLS и DNS, анализирует почтовую очередь и отображает результаты в удобном цветном интерфейсе.
+Режим по умолчанию безопасен для диагностики production-серверов: скрипт читает состояние системы и показывает findings. Он не меняет firewall, не перезапускает сервисы, не устанавливает пакеты, не редактирует конфигурацию почтового сервера и не блокирует IP автоматически.
 
-> 🟢 По умолчанию аудит работает только в режиме чтения.  
-> 🔴 Скрипт автоматически не изменяет firewall и конфигурацию почтового сервера.
+## Что Проверяется
 
----
+| Область | Покрытие |
+|---|---|
+| Состояние системы | ОС, ядро, обновления, необходимость перезагрузки, failed services, диск и inode |
+| SSH | Эффективная конфигурация `sshd`, root login, password auth, ключи, успешные и неудачные входы |
+| Сеть | Слушающие порты, публичные сервисы, неожиданные порты, опасные DB-порты наружу |
+| Firewall | UFW, nftables, iptables policies, Fail2ban chains |
+| Brute-force защита | Fail2ban jails и counters, CrowdSec и sshguard, безопасное ручное меню блокировок |
+| Почтовый стек | Определение Postfix, Exim, Sendmail, OpenSMTPD, Dovecot, Courier |
+| Mail auth | Ошибки Dovecot и Postfix SASL, топ атакующих IPv4 и IPv6 |
+| Mail flow | Статистика Postfix по доменам отправителей и получателей, delivery stats, Queue ID correlation |
+| Очереди | Размер очередей Postfix и Exim, deferred mail, warning thresholds |
+| Relay safety | Postfix relay restrictions, `mynetworks`, `reject_unauth_destination`, подсказки по Exim |
+| TLS | HTTPS, SMTP, IMAP, POP3 STARTTLS, subject, issuer, expiry, legacy TLS в deep mode |
+| DNS | MX, SPF, DMARC, DKIM selector, PTR, проверка mail hostname |
+| Integrity | SUID/SGID, world-writable files, package integrity, cron, timers, backup tooling |
 
-## ✨ Возможности
+## Быстрый Старт
 
-### 🖥️ Система и обновления
-
-- Информация об операционной системе и ядре
-- Ожидающие обновления пакетов
-- Статус автоматических обновлений безопасности
-- Проверка необходимости перезагрузки
-- Неисправные systemd-сервисы
-- Использование диска и inode
-
-### 🔐 Безопасность SSH
-
-- Эффективная конфигурация `sshd`
-- Статус входа пользователя root
-- Статус парольной авторизации
-- Авторизация по SSH-ключам
-- Успешные и неудачные SSH-входы
-- Топ атакующих IP-адресов
-- История последних входов
-- Подозрительные учётные записи с UID `0`
-- Проверка SSH authorized keys
-
-### 🌐 Сеть и firewall
-
-- Слушающие TCP- и UDP-порты
-- Сервисы, доступные снаружи
-- Поиск неожиданных открытых портов
-- Определение UFW, nftables и iptables
-- Политики INPUT, OUTPUT и FORWARD
-- Цепочки Fail2ban в firewall
-- Поиск опасных портов баз данных, открытых наружу
-
-### 🚫 Защита от перебора паролей
-
-- Статус Fail2ban и активных jail
-- Текущее и общее количество заблокированных IP
-- Обнаружение CrowdSec и sshguard
-- Интерактивное меню блокировки и разблокировки IP
-- Защита от блокировки IP текущей SSH-сессии
-- Ручное подтверждение каждой блокировки
-
-### 📧 Определение почтового сервера
-
-Поддерживаются и автоматически определяются:
-
-- Postfix
-- Exim
-- Sendmail
-- OpenSMTPD
-- Dovecot
-- Courier
-
-### 📊 Анализ почтовой авторизации
-
-- Ошибки авторизации Dovecot
-- Ошибки Postfix SASL
-- Топ атакующих IPv4 и IPv6
-- Статистика авторизации за выбранный период
-
-### 📬 Анализ почтового трафика
-
-Для серверов Postfix:
-
-- Топ входящих доменов отправителей
-- Топ исходящих доменов получателей
-- Статистика успешных доставок
-- Количество уникальных доменов
-- Связывание событий Postfix по Queue ID
-- Настраиваемое количество доменов в рейтинге
-
-### 📦 Анализ почтовой очереди
-
-- Текущий размер очереди Postfix или Exim
-- Обнаружение отложенных писем
-- Предупреждения при большой очереди
-
-### 🔁 Защита от open relay
-
-- Анализ relay-ограничений Postfix
-- Проверка `mynetworks`
-- Проверка `reject_unauth_destination`
-- Определение relay-конфигурации Exim
-- Напоминание о необходимости внешнего open-relay теста
-
-### 🔒 TLS и сертификаты
-
-- Проверка HTTPS-сертификата
-- Проверка SMTP, IMAP и POP3 STARTTLS
-- Subject, issuer и срок действия сертификата
-- Проверка соответствия hostname
-- Оставшийся срок действия сертификата
-- Проверка устаревших версий TLS в deep mode
-
-### 🌍 DNS и почтовая аутентификация
-
-- Проверка MX
-- Проверка SPF
-- Проверка DMARC
-- Проверка DKIM selector
-- Проверка PTR
-- Проверка hostname почтового сервера
-
-### 🧩 Целостность системы
-
-- Проверка SUID-бинарников
-- Проверка SGID в deep mode
-- Поиск world-writable файлов
-- Проверка целостности пакетов
-- Поиск недавно изменённых системных файлов
-- Проверка cron и systemd timers
-- Обнаружение систем резервного копирования
-
----
-
-## 🚀 Быстрый запуск
-
-### 1. Создай файл
+Склонируй репозиторий и запусти скрипт на почтовом сервере:
 
 ```bash
-nano mail-sec-audit.sh
-```
-
-Вставь скрипт и сохрани:
-
-```text
-Ctrl+O
-Enter
-Ctrl+X
-```
-
-### 2. Выдай права
-
-```bash
+git clone https://github.com/Anton-Babaskin/mail-sec-audit.git
+cd mail-sec-audit
 chmod 700 mail-sec-audit.sh
-```
-
-### 3. Запусти аудит
-
-```bash
 sudo ./mail-sec-audit.sh
 ```
 
----
-
-## ⚙️ Примеры запуска
-
-### Обычный аудит
-
-```bash
-sudo ./mail-sec-audit.sh
-```
-
-### Проверка логов за последние 7 дней
-
-```bash
-sudo ./mail-sec-audit.sh --days 7
-```
-
-### Проверка конкретного сервера
-
-```bash
-sudo ./mail-sec-audit.sh \
-  --days 7 \
-  --hostname mail.example.com \
-  --domain example.com
-```
-
-### Расширенный вывод
+Запуск проверки с доменом и hostname:
 
 ```bash
 sudo ./mail-sec-audit.sh \
   --days 7 \
   --hostname mail.example.com \
   --domain example.com \
-  --verbose
+  --dkim-selector default
 ```
 
-### Интерактивное меню Fail2ban
-
-```bash
-sudo ./mail-sec-audit.sh \
-  --days 7 \
-  --hostname mail.example.com \
-  --domain example.com \
-  --interactive
-```
-
-### Топ-100 почтовых доменов
-
-```bash
-sudo ./mail-sec-audit.sh \
-  --days 30 \
-  --hostname mail.example.com \
-  --domain example.com \
-  --mail-top 100
-```
-
-### Проверка DKIM selector
+Сохранение локального отчёта:
 
 ```bash
 sudo ./mail-sec-audit.sh \
   --hostname mail.example.com \
   --domain example.com \
-  --dkim-selector mail
+  --report ./reports/mail-audit-$(date +%F).log
 ```
 
-### Сохранение отчёта
+Отчёты могут содержать чувствительные operational данные. Директория `reports/` исключена из git.
 
-```bash
-sudo ./mail-sec-audit.sh \
-  --days 7 \
-  --hostname mail.example.com \
-  --domain example.com \
-  --report /root/mail-audit-$(date +%F).log
-```
-
-### Глубокий аудит
-
-```bash
-sudo ./mail-sec-audit.sh \
-  --deep \
-  --days 30 \
-  --hostname mail.example.com \
-  --domain example.com
-```
-
----
-
-## 🎛️ Основные параметры
+## Параметры
 
 | Параметр | Описание |
 |---|---|
-| `--days N` | Анализировать логи за последние `N` дней |
-| `--hostname HOST` | Hostname почтового сервера |
-| `--domain DOMAIN` | Основной почтовый домен |
-| `--dkim-selector NAME` | DKIM selector для проверки |
-| `--mail-top N` | Количество входящих и исходящих доменов |
+| `--days N` | Анализировать логи за последние `N` дней. По умолчанию: `7` |
+| `--hostname HOST` | FQDN почтового сервера для TLS-проверок |
+| `--domain DOMAIN` | Основной почтовый домен для DNS-проверок |
+| `--dkim-selector NAME` | DKIM selector для DNS lookup |
+| `--mail-top N` | Количество доменов отправителей и получателей. По умолчанию: `20` |
 | `--verbose` | Расширенный диагностический вывод |
-| `--interactive` | Интерактивное меню Fail2ban |
-| `--deep` | Более глубокие и медленные проверки |
-| `--report FILE` | Сохранить отчёт в файл |
-| `--no-color` | Отключить цветной вывод |
-| `--help` | Показать справку |
+| `--interactive` | Открыть ручное меню управления Fail2ban |
+| `--deep` | Запустить более медленные и детальные проверки |
+| `--report FILE` | Сохранить вывод аудита в файл |
+| `--no-color` | Отключить ANSI-цвета |
+| `-h`, `--help` | Показать справку |
 
----
-
-## 🎨 Статусы проверки
-
-```text
-[  OK  ] Проверка успешно пройдена
-[ INFO ] Информационный результат
-[ WARN ] Рекомендуется проверить
-[ FAIL ] Критическая проблема безопасности или конфигурации
-```
-
----
-
-## 🚫 Интерактивное управление IP
-
-```bash
-sudo ./mail-sec-audit.sh --interactive
-```
-
-Доступные действия:
-
-```text
-1) Заблокировать IP в выбранном Fail2ban jail
-2) Разблокировать IP во всех Fail2ban jail
-3) Показать заблокированные IP
-0) Выйти без изменений
-```
-
-Перед блокировкой скрипт проверяет, что адрес не является:
-
-- IP текущей SSH-сессии;
-- локальным IP сервера;
-- loopback-адресом;
-- приватным адресом;
-- link-local адресом;
-- multicast-адресом.
-
-Каждая блокировка требует отдельного подтверждения.
-
----
-
-## 🔌 Разрешённые нестандартные порты
-
-```bash
-sudo MAIL_AUDIT_ALLOWED_PORTS="10050 9100" \
-  ./mail-sec-audit.sh \
-  --hostname mail.example.com \
-  --domain example.com
-```
-
----
-
-## 📤 Коды завершения
+## Коды Завершения
 
 | Код | Значение |
 |---:|---|
-| `0` | Аудит завершён без предупреждений |
+| `0` | Аудит завершён без предупреждений и критических findings |
 | `1` | Найдены предупреждения |
-| `2` | Найдены критические проблемы |
+| `2` | Найдены критические findings |
 
----
+## Модель Безопасности
 
-## 🧰 Требования
+В обычном режиме аудита скрипт не:
+
+- изменяет firewall rules;
+- перезапускает сервисы;
+- устанавливает пакеты;
+- меняет SSH, Postfix, Exim, Dovecot или DNS configuration;
+- удаляет письма из очереди;
+- блокирует или разблокирует IP автоматически.
+
+Единственный workflow с возможностью записи — явно включённое интерактивное меню Fail2ban. Каждое действие требует подтверждения, а IP текущей SSH-сессии защищён от случайной блокировки.
+
+Подробнее: [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
+
+## Требования
 
 Рекомендуемое окружение:
 
-- Debian
-- Ubuntu
-- Bash 5+
-- Права root
+- Debian или Ubuntu;
+- Bash 5 или новее;
+- root privileges для полного покрытия проверок.
 
-Дополнительные утилиты:
+Дополнительные утилиты расширяют покрытие, если доступны:
 
 ```text
 openssl
@@ -366,84 +145,64 @@ doveconf
 
 Недоступные проверки пропускаются без остановки аудита.
 
----
+## Структура Проекта
 
-## 🛡️ Модель безопасности
+```text
+.
+├── mail-sec-audit.sh          # Основной audit script
+├── README.md                  # Документация на английском
+├── README_RU.md               # Документация на русском
+├── docs/                      # Подробные гайды и проектные заметки
+├── examples/                  # Примеры окружения
+├── tests/                     # Smoke tests
+├── .github/                   # CI, issue templates, PR template
+├── CONTRIBUTING.md            # Правила contribution
+├── SECURITY.md                # Security policy
+├── CHANGELOG.md               # Release notes
+└── LICENSE                    # MIT License
+```
 
-В обычном режиме скрипт не выполняет:
+## Документация
 
-- изменение firewall;
-- перезапуск сервисов;
-- установку пакетов;
-- изменение SSH;
-- изменение Postfix или Dovecot;
-- удаление писем из очереди;
-- автоматическую блокировку IP.
+- [Usage guide](docs/USAGE.md)
+- [Security model](docs/SECURITY_MODEL.md)
+- [Development guide](docs/DEVELOPMENT.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
-Единственная операция записи — ручное управление Fail2ban через интерактивное меню.
+## Разработка
 
----
+Перед pull request запусти локальные проверки:
 
-## 🗺️ План развития
+```bash
+bash -n mail-sec-audit.sh
+bash tests/smoke.sh
+shellcheck mail-sec-audit.sh tests/*.sh
+```
 
-### 🌐 `mail-external-audit`
+GitHub Actions запускает тот же базовый набор проверок на push и pull request.
 
-Внешняя проверка почтового сервера с другого VPS:
+## Roadmap
 
-- настоящий open-relay test;
-- внешняя проверка SMTP и IMAP TLS;
-- проверка цепочки сертификата;
-- анализ SMTP banner;
-- PTR и forward-confirmed reverse DNS;
-- проверка RBL;
-- проверка внешней доступности портов;
-- поиск небезопасной авторизации.
+Планируемые companion tools:
 
-### 📡 `mail-audit-collector`
+- `mail-external-audit`: внешние проверки relay, TLS, banner, DNS, RBL и портов с другого хоста;
+- `mail-audit-collector`: централизованный сбор, сравнение baseline, JSON output, fleet reporting и notifications.
 
-Централизованный сбор результатов:
-
-- сбор отчётов с нескольких серверов;
-- сравнение baseline;
-- обнаружение новых портов и SSH-ключей;
-- обнаружение изменений firewall;
-- централизованные отчёты;
-- Telegram-уведомления;
-- JSON-вывод;
-- общая сводка по всем серверам.
-
----
-
-## ⚠️ Важные замечания
+## Важные Замечания
 
 - Локальный анализ конфигурации не заменяет внешний open-relay test.
-- Большое количество неудачных входов не равно количеству уникальных атакующих.
-- Счётчики Fail2ban могут содержать IP, которые уже были разблокированы.
-- Анализ почтового трафика наиболее подробно работает на Postfix.
+- Количество failed logins не всегда равно количеству уникальных атакующих.
+- Fail2ban counters могут включать адреса, которые уже были разблокированы.
+- Mail-flow analytics сейчас наиболее детально работает для Postfix.
 - Перед ручной блокировкой IP всегда проверяй адрес.
 
----
+## Лицензия
 
-## 🤝 Участие в разработке
+Проект распространяется по [MIT License](LICENSE).
 
-Приветствуются сообщения об ошибках, улучшения, поддержка дополнительных почтовых серверов и pull requests.
+## Автор
 
----
-
-## 📄 Лицензия
-
-Проект распространяется по лицензии MIT.
-
----
-
-## 👤 Автор
-
-**Anton Babaskin**
-
+**Anton Babaskin**  
 GitHub: [@Anton-Babaskin](https://github.com/Anton-Babaskin)
 
----
-
-<p align="center">
-  🛡️ Защита • 📊 Анализ • 🔍 Обнаружение • 🚫 Блокировка
-</p>

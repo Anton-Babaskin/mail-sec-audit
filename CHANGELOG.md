@@ -11,4 +11,4 @@ versioning where practical.
 
 - Repository maintenance files for consistent editing, licensing, security
   reporting, contribution flow, and CI checks.
-
+- Modern bilingual README pages and a project structure guide.
