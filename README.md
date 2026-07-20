@@ -1,8 +1,33 @@
-# Mail Security Audit
+<div align="center">
 
-`mail-sec-audit` is a read-only Bash audit for Linux mail servers. It provides a structured view of service health, network exposure, authentication activity, mail flow, DNS, TLS, firewall policy and host security without silently changing production configuration.
+# 🛡️ Mail Security Audit
 
-Version: **2.2.3**
+### Read-only security posture for production Linux mail servers
+
+<img src="https://img.shields.io/badge/version-2.2.3-2563eb?style=for-the-badge" alt="Version 2.2.3">
+<img src="https://img.shields.io/badge/Bash-4%2B-121011?style=for-the-badge&logo=gnubash&logoColor=white" alt="Bash 4+">
+<img src="https://img.shields.io/badge/default-read--only-16a34a?style=for-the-badge" alt="Read-only by default">
+<img src="https://img.shields.io/github/license/Anton-Babaskin/mail-sec-audit?style=for-the-badge&color=0ea5e9" alt="License">
+
+<a href="#-quick-start">Quick Start</a> · <a href="#what-it-checks">Checks</a> · <a href="#safety-model">Safety</a> · <a href="#-usage-examples">Usage</a>
+
+</div>
+
+---
+
+## ⚡ Quick Start
+
+```bash
+git clone https://github.com/Anton-Babaskin/mail-sec-audit.git
+cd mail-sec-audit
+chmod +x mail-sec-audit.sh
+sudo ./mail-sec-audit.sh
+```
+
+> [!NOTE]
+> The default path is read-only. Exit codes distinguish a clean result, warnings, and critical findings.
+
+**Best for:** incident triage, maintenance reviews and security baselining across Postfix, Exim, Sendmail and OpenSMTPD hosts.
 
 ## Scope
 
@@ -46,14 +71,7 @@ Reports are created with restrictive permissions, and temporary files are remove
 
 Missing optional tools are reported; they should not make the complete audit fail unexpectedly.
 
-## Quick start
-
-```bash
-git clone https://github.com/Anton-Babaskin/mail-sec-audit.git
-cd mail-sec-audit
-chmod +x mail-sec-audit.sh
-sudo ./mail-sec-audit.sh
-```
+## 🧭 Usage examples
 
 Audit a defined period and mail identity:
 
@@ -65,7 +83,7 @@ sudo ./mail-sec-audit.sh \
   --dkim-selector mail
 ```
 
-Run additional checks and save a private report:
+Run deeper checks and save a private report:
 
 ```bash
 sudo ./mail-sec-audit.sh --deep --report /root/mail-audit.txt
@@ -77,7 +95,7 @@ Allow documented non-mail public ports during exposure evaluation:
 sudo MAIL_AUDIT_ALLOWED_PORTS="10050 9100" ./mail-sec-audit.sh
 ```
 
-Show all options:
+Show every option:
 
 ```bash
 ./mail-sec-audit.sh --help
