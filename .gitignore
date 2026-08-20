@@ -31,6 +31,8 @@ temp/
 coverage/
 .coverage
 .pytest_cache/
+__pycache__/
+*.py[cod]
 .shellcheckrc.local
 
 # Local environment
@@ -38,4 +40,3 @@ coverage/
 .env.*
 !.env.example
 examples/*.local
-

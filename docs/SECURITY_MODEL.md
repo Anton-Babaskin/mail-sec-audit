@@ -1,33 +1,54 @@
 # Security Model
 
-Mail Security Audit is intended to inspect local server state and report
-findings without changing production configuration.
+Mail Security Audit inspects local server state and reports findings without
+changing production configuration in its default mode.
 
-## Default behavior
+## Read-only default
 
-By default, the script must not:
+The normal audit does not change firewall rules, restart services, install
+packages, modify mail/SSH configuration, delete queued mail, or change bans.
+It does create a private temporary directory and, when requested, a report.
+Package checks use simulation or cache-only modes where supported.
 
-- change firewall rules;
-- restart services;
-- install or remove packages;
-- modify SSH, Postfix, Exim, Dovecot, or DNS configuration;
-- delete mail queue messages;
-- ban or unban IP addresses.
+Mailcow support invokes only read operations such as `docker logs`,
+`docker inspect`, `postconf`, `postqueue` and `doveconf`.
 
-## Interactive mode
+## Interactive boundary
 
-Interactive Fail2ban actions are opt-in and require explicit confirmation.
-The script should protect the current SSH client IP from accidental blocking.
+`--interactive` is the only system-changing workflow. Fail2ban ban/unban
+operations require confirmation. The script rejects malformed, non-global,
+host-owned and current SSH client addresses; IPv6 actions fail closed when a
+reliable Python address parser is unavailable.
 
-## Sensitive output
+This protection reduces operator error but is not a replacement for console
+access, a second administrative session and a tested rollback procedure.
 
-Audit output can include:
+## Files and sensitive output
 
-- server hostnames and domains;
-- public and private IP addresses;
-- service names and open ports;
-- authentication failure metadata;
-- mail queue and log statistics.
+- the process uses a fixed administrative `PATH`, `LC_ALL=C` and `umask 077`;
+- temporary cleanup is restricted to the expected private path prefix;
+- `--report` refuses overwrites and symbolic-link targets;
+- reports are mode `0600`;
+- `--append-report` requires an existing regular file owned by the current UID;
+- JSON append is prohibited because concatenated documents are invalid.
 
-Generated reports should be treated as sensitive operational documents.
+Create reports only in a trusted directory that unprivileged users cannot
+rename or write into; path checks do not make an attacker-controlled parent
+directory safe from filesystem races.
 
+Audit output can expose hostnames, addresses, usernames, domains, open ports and
+traffic patterns. `--redact` masks common email/IP forms and pseudonymizes mail
+statistics, but it is best-effort rather than a formal data-loss-prevention
+system. Review reports before transferring them off-host.
+
+## Trust assumptions and limits
+
+The tool assumes the local root environment, kernel, utilities, Docker daemon
+and inspected log files have not been maliciously subverted. A compromised
+host can lie to a local auditor. Local configuration inspection also cannot
+prove the absence of open relay or validate Internet-path TLS behavior; those
+checks require a separate external probe.
+
+Log statistics depend on retention and format. Queue IDs may theoretically be
+reused across very long log windows, and bounce/deferred numbers count delivery
+events, not necessarily unique messages.
