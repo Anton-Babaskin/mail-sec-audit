@@ -1,0 +1,18 @@
+2026-08-17T10:00:00Z mail postfix/submission/smtpd[101]: AAAAA1: client=client[203.0.113.10], sasl_method=PLAIN, sasl_username=alice@example.com
+2026-08-17T10:00:01Z mail postfix/qmgr[102]: AAAAA1: from=<alice@example.com>, size=1000, nrcpt=2 (queue active)
+2026-08-17T10:00:02Z mail postfix/smtp[103]: AAAAA1: to=<first@one.net>, relay=mx, status=sent (250 ok)
+2026-08-17T10:00:03Z mail postfix/smtp[104]: AAAAA1: to=<second@two.net>, relay=mx, status=sent (250 ok)
+2026-08-17T11:00:00Z mail postfix/submission/smtpd[201]: BBBBB2: client=client[198.51.100.20], sasl_method=LOGIN, sasl_username=bob@example.com
+2026-08-17T11:00:01Z mail postfix/qmgr[202]: BBBBB2: from=<sales@example.com>, size=2000, nrcpt=1 (queue active)
+2026-08-17T11:00:02Z mail postfix/smtp[203]: BBBBB2: to=<third@two.net>, relay=mx, status=sent (250 ok)
+2026-08-17T12:00:00Z mail postfix/qmgr[301]: CCCCC3: from=<sender@external.org>, size=3000, nrcpt=1 (queue active)
+2026-08-17T12:00:01Z mail postfix/lmtp[302]: CCCCC3: to=<local@example.com>, relay=dovecot, status=sent (250 saved)
+2026-08-17T13:00:00Z mail postfix/submission/smtpd[401]: DDDDD4: client=client[192.0.2.10], sasl_method=PLAIN, sasl_username=alice@example.com
+2026-08-17T13:00:01Z mail postfix/qmgr[402]: DDDDD4: from=<alice@example.com>, size=400, nrcpt=1 (queue active)
+2026-08-17T13:00:02Z mail postfix/smtp[403]: DDDDD4: to=<bounce@invalid.test>, relay=mx, status=bounced (550 rejected)
+2026-08-17T14:00:00Z mail postfix/submission/smtpd[501]: EEEEE5: client=client[198.51.100.20], sasl_method=PLAIN, sasl_username=bob@example.com
+2026-08-17T14:00:01Z mail postfix/qmgr[502]: EEEEE5: from=<bob@example.com>, size=500, nrcpt=1 (queue active)
+2026-08-17T14:00:02Z mail postfix/smtp[503]: EEEEE5: to=<later@one.net>, relay=mx, status=deferred (temporary failure)
+2026-08-17T14:05:02Z mail postfix/smtp[504]: EEEEE5: to=<later@one.net>, relay=mx, status=sent (250 ok)
+2026-08-18T10:00:00Z mail postfix/qmgr[601]: FFFFF6: from=<outside@next-day.test>, size=999, nrcpt=1 (queue active)
+2026-08-18T10:00:01Z mail postfix/smtp[602]: FFFFF6: to=<ignored@one.net>, relay=mx, status=sent (250 ok)

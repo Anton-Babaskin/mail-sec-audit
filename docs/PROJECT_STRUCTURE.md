@@ -6,6 +6,8 @@ files in predictable directories.
 ```text
 .
 ├── mail-sec-audit.sh
+├── lib/
+│   └── mail_stats.py
 ├── README.md
 ├── README_RU.md
 ├── docs/
@@ -20,7 +22,9 @@ files in predictable directories.
 
 ## Root files
 
-- `mail-sec-audit.sh` is the main executable audit script.
+- `mail-sec-audit.sh` is the main executable and system inspection orchestrator.
+- `lib/mail_stats.py` performs deterministic Postfix Queue ID correlation,
+  structured statistics, TSV tables, and redaction.
 - `README.md` is the default English project page.
 - `README_RU.md` mirrors the main README in Russian.
 - `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, and `CHANGELOG.md` define
@@ -30,7 +34,7 @@ files in predictable directories.
 
 - `docs/` contains deeper guides that would make the README too long.
 - `examples/` contains safe copyable configuration snippets.
-- `tests/` contains lightweight checks suitable for local use and CI.
+- `tests/` contains CLI smoke tests and sanitized log fixtures suitable for CI.
 - `.github/` contains GitHub Actions, issue templates, and the pull request
   template.
 
@@ -38,4 +42,3 @@ files in predictable directories.
 
 Generated reports and local environment files are intentionally ignored by git
 because audit output can include sensitive operational data.
-

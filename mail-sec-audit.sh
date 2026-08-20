@@ -15,13 +15,28 @@
 
 set -uo pipefail
 umask 077
+export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+export LC_ALL=C
 
-VERSION="2.2.3"
+SCRIPT_VERSION="2.3.0"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 DAYS=7
 MAIL_TOP=20
 MAIL_HOST=""
 MAIL_DOMAIN=""
 DKIM_SELECTOR=""
+FROM_DATE=""
+TO_DATE=""
+AUDIT_FROM=""
+AUDIT_TO=""
+PLATFORM_OVERRIDE="auto"
+MAIL_PLATFORM="generic"
+PLATFORM_VERSION=""
+MAILCOW_POSTFIX_CONTAINER=""
+MAILCOW_DOVECOT_CONTAINER=""
+OUTPUT_FORMAT="text"
+REDACT=0
+APPEND_REPORT=0
 DEEP=0
 NO_COLOR=0
 INTERACTIVE=0
@@ -44,14 +59,21 @@ usage() {
 Опции:
   --days N              Период анализа journal/log, по умолчанию 7 дней
   --mail-top N          Сколько доменов показывать в почтовой статистике, по умолчанию 20
+  --from YYYY-MM-DD     Начало периода почтовой статистики, включительно
+  --to YYYY-MM-DD       Конец периода почтовой статистики, включительно
   --hostname FQDN       Основное имя почтового сервера для TLS-проверок
   --domain DOMAIN       Почтовый домен для MX/SPF/DMARC-проверок
   --dkim-selector SEL   DKIM-селектор для DNS-проверки
+  --platform NAME       auto, generic, mailcow, iredmail или mailinabox
+  --format FORMAT       Формат основного вывода: text или json
+  --redact              Скрывать email-адреса и IP в выводе и отчёте
   --deep                Дополнительные, более тяжёлые проверки
-  --report FILE         Одновременно сохранить вывод в файл
+  --report FILE         Сохранить отчёт в новый файл с правами 0600
+  --append-report FILE  Дописать отчёт в существующий безопасный файл
   --interactive         После аудита открыть безопасное меню Fail2ban
   --verbose             Показывать полный сырой вывод firewall/listeners
   --no-color            Отключить ANSI-цвета
+  --version             Показать версию и выйти
   -h, --help            Показать справку
 
 Дополнительные разрешённые публичные порты:
@@ -62,30 +84,106 @@ usage() {
 USAGE
 }
 
+argument_error() {
+  printf 'Ошибка: %s\n' "$1" >&2
+  exit 64
+}
+
+require_option_value() {
+  local option="$1"
+  if (( $# < 2 )) || [[ -z "$2" || "$2" == -* ]]; then
+    argument_error "$option требует значение"
+  fi
+}
+
+validate_dns_argument() {
+  local option="$1" value="$2"
+  if (( ${#value} > 253 )) || [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$ ]]; then
+    argument_error "$option содержит недопустимое имя: $value"
+  fi
+}
+
+validate_allowed_ports() {
+  local port
+  local -a allowed_ports=()
+  read -r -a allowed_ports <<<"$MAIL_AUDIT_ALLOWED_PORTS"
+  for port in "${allowed_ports[@]}"; do
+    if [[ ! "$port" =~ ^[0-9]+$ || ${#port} -gt 5 ]] || (( 10#$port < 1 || 10#$port > 65535 )); then
+      argument_error "MAIL_AUDIT_ALLOWED_PORTS содержит недопустимый порт: $port"
+    fi
+  done
+}
+
+validate_iso_date() {
+  local option="$1" value="$2"
+  if [[ ! "$value" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+    || ! date -d "$value" '+%Y-%m-%d' 2>/dev/null | grep -qx "$value"; then
+    argument_error "$option требует корректную дату YYYY-MM-DD"
+  fi
+}
+
 while (($#)); do
   case "$1" in
     --days)
-      [[ ${2:-} =~ ^[0-9]+$ ]] || { echo "Ошибка: --days требует целое число" >&2; exit 64; }
+      require_option_value "$@"
+      if [[ ! "$2" =~ ^[0-9]+$ || ${#2} -gt 4 ]] || (( 10#$2 < 1 || 10#$2 > 3650 )); then
+        argument_error "--days требует число от 1 до 3650"
+      fi
       DAYS="$2"; shift 2 ;;
     --mail-top)
-      [[ ${2:-} =~ ^[0-9]+$ ]] && (( ${2:-0} >= 1 && ${2:-0} <= 100 )) || { echo "Ошибка: --mail-top требует число от 1 до 100" >&2; exit 64; }
+      require_option_value "$@"
+      if [[ ! "$2" =~ ^[0-9]+$ || ${#2} -gt 3 ]] || (( 10#$2 < 1 || 10#$2 > 100 )); then
+        argument_error "--mail-top требует число от 1 до 100"
+      fi
       MAIL_TOP="$2"; shift 2 ;;
+    --from)
+      require_option_value "$@"
+      validate_iso_date "--from" "$2"
+      FROM_DATE="$2"; shift 2 ;;
+    --to)
+      require_option_value "$@"
+      validate_iso_date "--to" "$2"
+      TO_DATE="$2"; shift 2 ;;
     --hostname)
-      MAIL_HOST="${2:-}"; shift 2 ;;
+      require_option_value "$@"
+      validate_dns_argument "--hostname" "$2"
+      MAIL_HOST="$2"; shift 2 ;;
     --domain)
-      MAIL_DOMAIN="${2:-}"; shift 2 ;;
+      require_option_value "$@"
+      validate_dns_argument "--domain" "$2"
+      MAIL_DOMAIN="$2"; shift 2 ;;
     --dkim-selector)
-      DKIM_SELECTOR="${2:-}"; shift 2 ;;
+      require_option_value "$@"
+      validate_dns_argument "--dkim-selector" "$2"
+      DKIM_SELECTOR="$2"; shift 2 ;;
+    --platform)
+      require_option_value "$@"
+      case "$2" in auto|generic|mailcow|iredmail|mailinabox) ;; *) argument_error "неизвестная платформа: $2" ;; esac
+      PLATFORM_OVERRIDE="$2"; shift 2 ;;
+    --format)
+      require_option_value "$@"
+      case "$2" in text|json) ;; *) argument_error "--format поддерживает text или json" ;; esac
+      OUTPUT_FORMAT="$2"; shift 2 ;;
+    --redact)
+      REDACT=1; shift ;;
     --deep)
       DEEP=1; shift ;;
     --report)
-      REPORT_FILE="${2:-}"; shift 2 ;;
+      require_option_value "$@"
+      [[ -z "$REPORT_FILE" ]] || argument_error "--report и --append-report можно указать только один раз"
+      REPORT_FILE="$2"; shift 2 ;;
+    --append-report)
+      require_option_value "$@"
+      [[ -z "$REPORT_FILE" ]] || argument_error "--report и --append-report можно указать только один раз"
+      REPORT_FILE="$2"; APPEND_REPORT=1; shift 2 ;;
     --interactive|--manage-bans)
       INTERACTIVE=1; shift ;;
     --verbose)
       VERBOSE=1; shift ;;
     --no-color)
       NO_COLOR=1; shift ;;
+    --version)
+      printf 'mail-sec-audit %s\n' "$SCRIPT_VERSION"; exit 0 ;;
     -h|--help)
       usage; exit 0 ;;
     *)
@@ -95,14 +193,102 @@ while (($#)); do
   esac
 done
 
-if [[ -n "$REPORT_FILE" ]]; then
-  mkdir -p "$(dirname "$REPORT_FILE")" 2>/dev/null || true
-  touch "$REPORT_FILE" 2>/dev/null || { echo "Не удалось создать report: $REPORT_FILE" >&2; exit 73; }
-  chmod 600 "$REPORT_FILE" 2>/dev/null || true
-  exec > >(tee -a "$REPORT_FILE") 2>&1
+validate_allowed_ports
+if [[ "$OUTPUT_FORMAT" == "json" ]] && ! command -v python3 >/dev/null 2>&1; then
+  printf 'Ошибка: --format json требует python3\n' >&2
+  exit 69
+fi
+if [[ "$OUTPUT_FORMAT" == "json" && "$APPEND_REPORT" -eq 1 ]]; then
+  argument_error "--append-report нельзя сочетать с --format json; JSON-отчёт должен быть отдельным файлом"
+fi
+if [[ "$OUTPUT_FORMAT" == "json" && "$INTERACTIVE" -eq 1 ]]; then
+  argument_error "--interactive нельзя сочетать с --format json"
 fi
 
-if [[ -t 1 && "$NO_COLOR" -eq 0 ]]; then
+if [[ -n "$TO_DATE" ]]; then
+  AUDIT_TO="$TO_DATE 23:59:59"
+else
+  AUDIT_TO="$(date '+%Y-%m-%d %H:%M:%S')"
+fi
+if [[ -n "$FROM_DATE" ]]; then
+  AUDIT_FROM="$FROM_DATE 00:00:00"
+elif [[ -n "$TO_DATE" ]]; then
+  AUDIT_FROM="$(date -d "$TO_DATE -$((DAYS - 1)) days" '+%Y-%m-%d 00:00:00')"
+else
+  AUDIT_FROM="$(date -d "$DAYS days ago" '+%Y-%m-%d 00:00:00')"
+fi
+if (( $(date -d "$AUDIT_FROM" +%s) > $(date -d "$AUDIT_TO" +%s) )); then
+  argument_error "--from не может быть позже --to"
+fi
+DAYS=$(( ($(date -d "$AUDIT_TO" +%s) - $(date -d "$AUDIT_FROM" +%s) + 86399) / 86400 ))
+(( DAYS >= 1 )) || DAYS=1
+
+if [[ ! "${COLUMNS:-}" =~ ^[0-9]+$ ]] || (( COLUMNS < 60 || COLUMNS > 200 )); then
+  COLUMNS=88
+fi
+
+TMPROOT="$(mktemp -d /tmp/mail-sec-audit.XXXXXX)" || exit 1
+FINDINGS_FILE="$TMPROOT/findings.tsv"
+MAIL_STATS_JSON="$TMPROOT/mail-stats.json"
+: >"$FINDINGS_FILE"
+
+# ShellCheck 0.9 reports SC2317 and 0.11 reports SC2329 for trap-only functions.
+# shellcheck disable=SC2317,SC2329
+cleanup() {
+  if [[ -n "${TMPROOT:-}" && "$TMPROOT" == /tmp/mail-sec-audit.* && -d "$TMPROOT" && ! -L "$TMPROOT" ]]; then
+    rm -rf -- "$TMPROOT"
+  fi
+}
+trap cleanup EXIT HUP INT TERM
+
+prepare_report_target() {
+  local target="$1" parent owner
+  parent="$(dirname -- "$target")"
+  mkdir -p -- "$parent" 2>/dev/null || { printf 'Не удалось создать каталог отчёта: %s\n' "$parent" >&2; exit 73; }
+  [[ ! -L "$target" ]] || { printf 'Отказ: путь отчёта является символической ссылкой: %s\n' "$target" >&2; exit 73; }
+  if (( APPEND_REPORT == 1 )); then
+    [[ -f "$target" ]] || { printf 'Для --append-report нужен существующий обычный файл: %s\n' "$target" >&2; exit 73; }
+    owner="$(stat -c '%u' "$target" 2>/dev/null || true)"
+    [[ "$owner" == "$EUID" ]] || { printf 'Отказ: файл отчёта принадлежит другому пользователю\n' >&2; exit 73; }
+  else
+    [[ ! -e "$target" ]] || { printf 'Файл уже существует; используй --append-report: %s\n' "$target" >&2; exit 73; }
+    (set -o noclobber; : >"$target") 2>/dev/null \
+      || { printf 'Не удалось безопасно создать отчёт: %s\n' "$target" >&2; exit 73; }
+  fi
+  chmod 600 -- "$target" 2>/dev/null || { printf 'Не удалось установить права 0600: %s\n' "$target" >&2; exit 73; }
+}
+
+redact_stream() {
+  sed -E \
+    -e 's/[[:alnum:]._%+-]+@[[:alnum:].-]+/<redacted-email>/g' \
+    -e 's/([0-9]{1,3}\.){3}[0-9]{1,3}/<redacted-ip>/g' \
+    -e 's/([[:xdigit:]]{0,4}:){2,7}[[:xdigit:]]{0,4}/<redacted-ipv6>/g'
+}
+
+STDOUT_WAS_TTY=0
+[[ -t 1 ]] && STDOUT_WAS_TTY=1
+[[ "$OUTPUT_FORMAT" == "json" ]] && NO_COLOR=1
+
+if [[ -n "$REPORT_FILE" ]]; then
+  prepare_report_target "$REPORT_FILE"
+fi
+
+if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+  exec 3>&1 4>&2
+  exec >"$TMPROOT/human-report.txt" 2>&1
+elif [[ -n "$REPORT_FILE" && "$REDACT" -eq 1 && "$APPEND_REPORT" -eq 1 ]]; then
+  exec > >(redact_stream | tee -a -- "$REPORT_FILE") 2>&1
+elif [[ -n "$REPORT_FILE" && "$REDACT" -eq 1 ]]; then
+  exec > >(redact_stream | tee -- "$REPORT_FILE") 2>&1
+elif [[ -n "$REPORT_FILE" && "$APPEND_REPORT" -eq 1 ]]; then
+  exec > >(tee -a -- "$REPORT_FILE") 2>&1
+elif [[ -n "$REPORT_FILE" ]]; then
+  exec > >(tee -- "$REPORT_FILE") 2>&1
+elif (( REDACT == 1 )); then
+  exec > >(redact_stream) 2>&1
+fi
+
+if (( STDOUT_WAS_TTY == 1 && NO_COLOR == 0 )); then
   BOLD=$'\033[1m'; DIM=$'\033[2m'; RED=$'\033[1;31m'; YELLOW=$'\033[1;33m'
   GREEN=$'\033[1;32m'; BLUE=$'\033[1;34m'; CYAN=$'\033[1;36m'
   MAGENTA=$'\033[1;35m'; WHITE=$'\033[1;37m'; RESET=$'\033[0m'
@@ -111,27 +297,77 @@ else
   MAGENTA=""; WHITE=""; RESET=""
 fi
 
-hr() { local line; printf -v line '%*s' "${COLUMNS:-88}" ''; printf '%s%s%s\n' "$DIM" "${line// /─}" "$RESET"; }
+hr() { local line; printf -v line '%*s' "$COLUMNS" ''; printf '%s%s%s\n' "$DIM" "${line// /─}" "$RESET"; }
 banner() {
   printf '\n%s' "$CYAN$BOLD"; hr
-  printf '  MAIL SECURITY AUDIT  v%s\n' "$VERSION"
-  printf '  host: %-40s period: %s day(s)\n' "$MAIL_HOST" "$DAYS"
+  printf '  MAIL SECURITY AUDIT  v%s\n' "$SCRIPT_VERSION"
+  printf '  host: %-40s period: %s -> %s\n' "$MAIL_HOST" "${AUDIT_FROM%% *}" "${AUDIT_TO%% *}"
   hr; printf '%s' "$RESET"
 }
 section() {
   SECTION_NO=$((SECTION_NO+1))
+  FINDING_SEQ=0
+  case "$1" in
+    "AUDIT CONTEXT") CURRENT_SECTION_CODE="CTX" ;;
+    "PATCHES / REBOOT") CURRENT_SECTION_CODE="PATCH" ;;
+    "MAIL PLATFORM / STACK DETECTION") CURRENT_SECTION_CODE="STACK" ;;
+    "SSHD EFFECTIVE CONFIG") CURRENT_SECTION_CODE="SSH" ;;
+    "LISTENING PORTS / PUBLIC BINDS") CURRENT_SECTION_CODE="NET" ;;
+    "FIREWALL") CURRENT_SECTION_CODE="FW" ;;
+    "BRUTE-FORCE PROTECTION") CURRENT_SECTION_CODE="BRUTE" ;;
+    "AUTHENTICATION EVENTS") CURRENT_SECTION_CODE="AUTH" ;;
+    "MAIL FLOW ANALYTICS") CURRENT_SECTION_CODE="FLOW" ;;
+    "MTA / RELAY CONFIGURATION") CURRENT_SECTION_CODE="MTA" ;;
+    "TLS CERTIFICATES / LOCAL SERVICES") CURRENT_SECTION_CODE="TLS" ;;
+    "DEEP TLS LEGACY PROTOCOL CHECK") CURRENT_SECTION_CODE="TLSLEGACY" ;;
+    "DNS / MAIL AUTHENTICATION RECORDS") CURRENT_SECTION_CODE="DNS" ;;
+    "LOCAL USERS / PRIVILEGES") CURRENT_SECTION_CODE="USERS" ;;
+    "SSH AUTHORIZED_KEYS") CURRENT_SECTION_CODE="KEYS" ;;
+    "DISK / FILESYSTEM CAPACITY") CURRENT_SECTION_CODE="DISK" ;;
+    "MAIL QUEUE") CURRENT_SECTION_CODE="QUEUE" ;;
+    "SUID / SGID") CURRENT_SECTION_CODE="SUID" ;;
+    "WORLD-WRITABLE SENSITIVE PATHS") CURRENT_SECTION_CODE="PERMS" ;;
+    "FAILED SERVICES / SECURITY FRAMEWORK") CURRENT_SECTION_CODE="MAC" ;;
+    "CRON / SYSTEMD TIMERS") CURRENT_SECTION_CODE="SCHED" ;;
+    "BACKUP DETECTION") CURRENT_SECTION_CODE="BACKUP" ;;
+    "LAST LOGINS") CURRENT_SECTION_CODE="LOGIN" ;;
+    "DEEP PACKAGE INTEGRITY") CURRENT_SECTION_CODE="PKG" ;;
+    "RECENTLY MODIFIED EXECUTABLE / CONFIG PATHS") CURRENT_SECTION_CODE="RECENT" ;;
+    "SUMMARY") CURRENT_SECTION_CODE="SUMMARY" ;;
+    *) CURRENT_SECTION_CODE="GEN" ;;
+  esac
   printf '\n%s[%02d] %-68s%s\n' "$BOLD$CYAN" "$SECTION_NO" "$1" "$RESET"
-  local line; printf -v line '%*s' "${COLUMNS:-88}" ''; printf '%s%s%s\n' "$DIM" "${line// /─}" "$RESET"
+  local line; printf -v line '%*s' "$COLUMNS" ''; printf '%s%s%s\n' "$DIM" "${line// /─}" "$RESET"
 }
-pass()     { printf '%s[  OK  ]%s %s\n' "$GREEN" "$RESET" "$*"; ((PASSES+=1)); }
-info()     { printf '%s[ INFO ]%s %s\n' "$BLUE" "$RESET" "$*"; ((INFOS+=1)); }
-warn()     { printf '%s[ WARN ]%s %s\n' "$YELLOW" "$RESET" "$*"; ((WARNINGS+=1)); }
-critical() { printf '%s[ FAIL ]%s %s\n' "$RED" "$RESET" "$*"; ((CRITICALS+=1)); }
+record_finding() {
+  local severity="$1" message="$2" id
+  FINDING_SEQ=$((FINDING_SEQ+1))
+  printf -v id '%s-%03d' "${CURRENT_SECTION_CODE:-GEN}" "$FINDING_SEQ"
+  message="${message//$'\t'/ }"; message="${message//$'\n'/ }"
+  printf '%s\t%s\t%s\n' "$id" "$severity" "$message" >>"$FINDINGS_FILE"
+}
+pass()     { printf '%s[  OK  ]%s %s\n' "$GREEN" "$RESET" "$*"; record_finding pass "$*"; ((PASSES+=1)); }
+info()     { printf '%s[ INFO ]%s %s\n' "$BLUE" "$RESET" "$*"; record_finding info "$*"; ((INFOS+=1)); }
+warn()     { printf '%s[ WARN ]%s %s\n' "$YELLOW" "$RESET" "$*"; record_finding warning "$*"; ((WARNINGS+=1)); }
+critical() { printf '%s[ FAIL ]%s %s\n' "$RED" "$RESET" "$*"; record_finding critical "$*"; ((CRITICALS+=1)); }
 have()     { command -v "$1" >/dev/null 2>&1; }
 kv()       { printf '  %s%-24s%s %s\n' "$DIM" "$1" "$RESET" "$2"; }
 
-TMPROOT="$(mktemp -d /tmp/mail-sec-audit.XXXXXX)" || exit 1
-trap 'rm -rf "$TMPROOT"' EXIT
+run_postconf() {
+  if [[ "$MAIL_PLATFORM" == "mailcow" && -n "${MAILCOW_POSTFIX_CONTAINER:-}" ]] && have docker; then
+    timeout 20 docker exec "$MAILCOW_POSTFIX_CONTAINER" postconf "$@"
+  else
+    postconf "$@"
+  fi
+}
+
+run_doveconf() {
+  if [[ "$MAIL_PLATFORM" == "mailcow" && -n "${MAILCOW_DOVECOT_CONTAINER:-}" ]] && have docker; then
+    timeout 20 docker exec "$MAILCOW_DOVECOT_CONTAINER" doveconf "$@"
+  else
+    doveconf "$@"
+  fi
+}
 
 if [[ -z "$MAIL_HOST" ]]; then
   MAIL_HOST="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo localhost)"
@@ -155,7 +391,7 @@ collect_journal() {
   local args=() unit
   if have journalctl; then
     for unit in "$@"; do args+=( -u "$unit" ); done
-    journalctl --since "$DAYS days ago" --no-pager -o cat "${args[@]}" >"$outfile" 2>/dev/null || true
+    journalctl --since "$AUDIT_FROM" --until "$AUDIT_TO" --no-pager -o cat "${args[@]}" >"$outfile" 2>/dev/null || true
   fi
 }
 
@@ -163,16 +399,111 @@ collect_fallback_logs() {
   local outfile="$1"; shift
   : >"$outfile"
   local pattern f
-  for pattern in "$@"; do
-    for f in $pattern; do
-      [[ -e "$f" ]] || continue
-      if have zgrep; then
-        zgrep -h '' "$f" >>"$outfile" 2>/dev/null || true
-      else
-        case "$f" in *.gz) ;; *) cat "$f" >>"$outfile" 2>/dev/null || true ;; esac
+  local -a log_files=()
+  mapfile -t log_files < <(
+    for pattern in "$@"; do
+      compgen -G "$pattern" || true
+    done | sort -u | while IFS= read -r f; do
+      [[ -f "$f" ]] && printf '%s\t%s\n' "$(stat -c '%Y' "$f" 2>/dev/null || echo 0)" "$f"
+    done | sort -n | cut -f2-
+  )
+  for f in "${log_files[@]}"; do
+    if [[ "$f" == *.gz ]]; then
+      if have zcat; then
+        zcat -- "$f" >>"$outfile" 2>/dev/null || true
       fi
-    done
+    else
+      cat -- "$f" >>"$outfile" 2>/dev/null || true
+    fi
   done
+}
+
+detect_mail_platform() {
+  local container=""
+  if [[ "$PLATFORM_OVERRIDE" != "auto" ]]; then
+    MAIL_PLATFORM="$PLATFORM_OVERRIDE"
+  elif have docker; then
+    container="$(timeout 8 docker ps -aq --filter label=com.docker.compose.service=postfix-mailcow 2>/dev/null | head -1)"
+    if [[ -n "$container" ]]; then
+      MAIL_PLATFORM="mailcow"
+      MAILCOW_POSTFIX_CONTAINER="$container"
+    fi
+  fi
+
+  if [[ "$PLATFORM_OVERRIDE" == "auto" && "$MAIL_PLATFORM" == "generic" ]]; then
+    if [[ -r /etc/iredmail-release ]]; then
+      MAIL_PLATFORM="iredmail"
+    elif [[ -r /etc/mailinabox.conf || -d /usr/local/lib/mailinabox || -d /home/user-data/mail/mailboxes ]]; then
+      MAIL_PLATFORM="mailinabox"
+    fi
+  fi
+
+  case "$MAIL_PLATFORM" in
+    mailcow)
+      if [[ -z "${MAILCOW_POSTFIX_CONTAINER:-}" ]] && have docker; then
+        MAILCOW_POSTFIX_CONTAINER="$(timeout 8 docker ps -aq --filter label=com.docker.compose.service=postfix-mailcow 2>/dev/null | head -1)"
+      fi
+      if have docker; then
+        MAILCOW_DOVECOT_CONTAINER="$(timeout 8 docker ps -aq --filter label=com.docker.compose.service=dovecot-mailcow 2>/dev/null | head -1)"
+      fi
+      if [[ -n "${MAILCOW_POSTFIX_CONTAINER:-}" ]]; then
+        PLATFORM_VERSION="$(timeout 8 docker inspect --format '{{.Config.Image}}' "$MAILCOW_POSTFIX_CONTAINER" 2>/dev/null || true)"
+      fi
+      ;;
+    iredmail)
+      PLATFORM_VERSION="$(head -1 /etc/iredmail-release 2>/dev/null | tr -cd '[:alnum:]._-')"
+      ;;
+    mailinabox)
+      PLATFORM_VERSION="$(mailinabox --version 2>/dev/null | head -1 || true)"
+      ;;
+  esac
+}
+
+collect_mail_logs() {
+  local outfile="$1" since until
+  : >"$outfile"
+  if [[ "$MAIL_PLATFORM" == "mailcow" && -n "${MAILCOW_POSTFIX_CONTAINER:-}" ]] && have docker; then
+    since="$(date -d "$AUDIT_FROM" --iso-8601=seconds)"
+    until="$(date -d "$AUDIT_TO" --iso-8601=seconds)"
+    timeout 120 docker logs --timestamps --since "$since" --until "$until" \
+      "$MAILCOW_POSTFIX_CONTAINER" >"$outfile" 2>/dev/null || true
+    if [[ -n "${MAILCOW_DOVECOT_CONTAINER:-}" ]]; then
+      timeout 120 docker logs --timestamps --since "$since" --until "$until" \
+        "$MAILCOW_DOVECOT_CONTAINER" >>"$outfile" 2>/dev/null || true
+    fi
+  else
+    collect_fallback_logs "$outfile" '/var/log/mail.log*' '/var/log/maillog*' \
+      '/var/log/exim4/mainlog*' '/var/log/exim/mainlog*'
+    if [[ "$MAIL_PLATFORM" == "iredmail" ]]; then
+      collect_fallback_logs "$TMPROOT/iredmail-dovecot.log" '/var/log/dovecot/*.log*'
+      cat "$TMPROOT/iredmail-dovecot.log" >>"$outfile" 2>/dev/null || true
+    fi
+    if [[ ! -s "$outfile" ]] && have journalctl; then
+      journalctl --since "$AUDIT_FROM" --until "$AUDIT_TO" --no-pager -o short-iso \
+        -u postfix.service -u exim4.service -u exim.service -u dovecot.service \
+        -u courier-imap.service -u courier-pop.service >"$outfile" 2>/dev/null || true
+    fi
+  fi
+}
+
+filter_log_period() {
+  local source="$1" target="$2"
+  python3 - "$SCRIPT_DIR/lib" "$source" "$target" "$AUDIT_FROM" "$AUDIT_TO" <<'PYFILTER'
+import datetime as dt
+import sys
+
+sys.path.insert(0, sys.argv[1])
+from mail_stats import parse_bound, parse_timestamp  # noqa: E402
+
+source, target = sys.argv[2], sys.argv[3]
+start, end = parse_bound(sys.argv[4]), parse_bound(sys.argv[5])
+now = dt.datetime.now().astimezone().replace(tzinfo=None)
+with open(source, encoding="utf-8", errors="replace") as incoming, open(target, "w", encoding="utf-8") as outgoing:
+    for line in incoming:
+        timestamp = parse_timestamp(line, now)
+        if timestamp is not None and start <= timestamp <= end:
+            outgoing.write(line)
+PYFILTER
 }
 
 extract_source_ips() {
@@ -214,6 +545,17 @@ print_ip_table() {
   (( rank == 0 )) && printf '  %sнет данных%s\n' "$DIM" "$RESET"
 }
 
+valid_ipv4_fallback() {
+  local ip="$1" octet
+  local -a octets=()
+  IFS='.' read -r -a octets <<<"$ip"
+  ((${#octets[@]} == 4)) || return 1
+  for octet in "${octets[@]}"; do
+    [[ "$octet" =~ ^[0-9]+$ && ${#octet} -le 3 ]] || return 1
+    (( 10#$octet <= 255 )) || return 1
+  done
+}
+
 valid_ip() {
   local ip="$1"
   if have python3; then
@@ -222,12 +564,12 @@ import ipaddress, sys
 ipaddress.ip_address(sys.argv[1])
 PYIP
   else
-    [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ || "$ip" == *:* ]]
+    [[ "$ip" != *:* ]] && valid_ipv4_fallback "$ip"
   fi
 }
 
 unsafe_to_ban() {
-  local ip="$1" current="${SSH_CONNECTION:-}" own
+  local ip="$1" current="${SSH_CONNECTION:-}" own first second third
   current="${current%% *}"
   [[ -n "$current" && "$ip" == "$current" ]] && return 0
   for own in $(hostname -I 2>/dev/null || true); do [[ "$ip" == "$own" ]] && return 0; done
@@ -235,11 +577,26 @@ unsafe_to_ban() {
     python3 - "$ip" <<'PYIP' >/dev/null 2>&1
 import ipaddress, sys
 x=ipaddress.ip_address(sys.argv[1])
-raise SystemExit(0 if (x.is_loopback or x.is_private or x.is_link_local or x.is_multicast or x.is_unspecified) else 1)
+raise SystemExit(0 if not x.is_global else 1)
 PYIP
     return $?
   fi
-  [[ "$ip" == 127.* || "$ip" == 10.* || "$ip" == 192.168.* || "$ip" == ::1 ]]
+  # Без надёжной IPv6-библиотеки блокировка IPv6 запрещена (fail closed).
+  [[ "$ip" != *:* ]] || return 0
+  valid_ipv4_fallback "$ip" || return 0
+  IFS='.' read -r first second third _ <<<"$ip"
+  first=$((10#$first)); second=$((10#$second)); third=$((10#$third))
+  ((
+    first == 0 || first == 10 || first == 127 || first >= 224 ||
+    (first == 100 && second >= 64 && second <= 127) ||
+    (first == 169 && second == 254) ||
+    (first == 172 && second >= 16 && second <= 31) ||
+    (first == 192 && second == 0 && (third == 0 || third == 2)) ||
+    (first == 192 && second == 168) ||
+    (first == 198 && (second == 18 || second == 19)) ||
+    (first == 198 && second == 51 && third == 100) ||
+    (first == 203 && second == 0 && third == 113)
+  ))
 }
 
 load_f2b_jails() {
@@ -260,12 +617,13 @@ choose_jail() {
 }
 
 pick_candidate_ip() {
-  local answer i
+  local answer i count ip
   mapfile -t CANDIDATE_LINES < <(cat "$TMPROOT/ssh-top-ips.txt" "$TMPROOT/mail-top-ips.txt" 2>/dev/null \
     | awk '{sum[$2]+=$1} END {for (ip in sum) print sum[ip],ip}' | sort -rn | head -15)
   printf '\n%sКандидаты из текущего отчёта:%s\n' "$BOLD" "$RESET"
   for i in "${!CANDIDATE_LINES[@]}"; do
-    printf '  %s%2d)%s %-7s %s\n' "$CYAN" "$((i+1))" "$RESET" ${CANDIDATE_LINES[$i]}
+    read -r count ip <<<"${CANDIDATE_LINES[$i]}"
+    printf '  %s%2d)%s %-7s %s\n' "$CYAN" "$((i+1))" "$RESET" "$count" "$ip"
   done
   printf '  %s m)%s ввести IP вручную\n' "$CYAN" "$RESET"
   read -r -p "Выбор [0=отмена]: " answer
@@ -294,8 +652,10 @@ show_banned_ips() {
 interactive_ban_menu() {
   [[ -t 0 && -t 1 ]] || { info "Интерактивное меню пропущено: нет TTY"; return; }
   (( EUID == 0 )) || { warn "Для управления Fail2ban нужен root"; return; }
-  have fail2ban-client && fail2ban-client ping 2>/dev/null | grep -qi pong \
-    || { warn "Fail2ban недоступен — меню управления не открыто"; return; }
+  if ! have fail2ban-client || ! fail2ban-client ping 2>/dev/null | grep -qi pong; then
+    warn "Fail2ban недоступен — меню управления не открыто"
+    return
+  fi
 
   local action confirm jail ip
   while true; do
@@ -342,20 +702,50 @@ interactive_ban_menu() {
 }
 
 check_usage_table() {
-  local mode="$1"
-  while read -r filesystem blocks used available percent mountpoint; do
+  local mode="$1" alerts=0
+  while read -r filesystem _ _ _ percent mountpoint; do
     [[ "$percent" =~ ^[0-9]+%$ ]] || continue
     local value="${percent%%%}"
     if (( value >= 95 )); then
       critical "$mode заполнение $percent: $mountpoint ($filesystem)"
+      alerts=$((alerts+1))
     elif (( value >= 85 )); then
       warn "$mode заполнение $percent: $mountpoint ($filesystem)"
+      alerts=$((alerts+1))
     fi
   done
+  (( alerts == 0 )) && pass "$mode: пороги 85%/95% не превышены"
+}
+
+detect_mail_storage_path() {
+  local storage_root
+  case "$MAIL_PLATFORM" in
+    mailcow)
+      if have docker && [[ -n "${MAILCOW_DOVECOT_CONTAINER:-}" ]]; then
+        timeout 8 docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/vmail"}}{{.Source}}{{end}}{{end}}' \
+          "$MAILCOW_DOVECOT_CONTAINER" 2>/dev/null || true
+      fi
+      ;;
+    iredmail)
+      [[ -d /var/vmail ]] && printf '%s\n' /var/vmail
+      ;;
+    mailinabox)
+      storage_root="$(sed -n 's/^STORAGE_ROOT=//p' /etc/mailinabox.conf 2>/dev/null | tail -1)"
+      storage_root="${storage_root:-/home/user-data}"
+      [[ -d "$storage_root/mail/mailboxes" ]] && printf '%s\n' "$storage_root/mail/mailboxes"
+      ;;
+    *)
+      if have postconf; then
+        storage_root="$(postconf -h virtual_mailbox_base 2>/dev/null || true)"
+        [[ -d "$storage_root" ]] && printf '%s\n' "$storage_root"
+      fi
+      ;;
+  esac
 }
 
 probe_tls() {
-  local label="$1" port="$2" starttls="${3:-}" outfile="$TMPROOT/tls-${port}-${starttls:-plain}.txt"
+  local label="$1" port="$2" starttls="${3:-}"
+  local outfile="$TMPROOT/tls-${port}-${starttls:-plain}.txt"
   local cmd=(openssl s_client -connect "127.0.0.1:$port" -servername "$MAIL_HOST" -showcerts)
   [[ -n "$starttls" ]] && cmd+=( -starttls "$starttls" )
 
@@ -398,92 +788,80 @@ probe_tls() {
 }
 
 
-print_domain_table() {
-  local file="$1" title="$2" count domain rank=0 color
+print_mailbox_stats_table() {
+  local file="$1" title="$2" address submitted messages deliveries bytes first last rank=0
   printf '%s%s%s\n' "$BOLD" "$title" "$RESET"
-  printf '  %s%-4s %-10s %s%s\n' "$DIM" "#" "MESSAGES" "DOMAIN" "$RESET"
-  while read -r count domain; do
-    [[ "$count" =~ ^[0-9]+$ && -n "$domain" ]] || continue
+  printf '  %s%-4s %-32s %9s %9s %10s %12s%s\n' "$DIM" "#" "MAILBOX / SENDER" "SUBMITTED" "DELIVERED" "RECIPIENTS" "BYTES" "$RESET"
+  while IFS=$'\t' read -r address submitted messages deliveries bytes first last; do
+    [[ "$messages" =~ ^[0-9]+$ ]] || continue
     rank=$((rank+1))
-    if (( rank <= 3 )); then color="$CYAN"; else color="$WHITE"; fi
-    printf '  %s%-4d %-10s %s%s\n' "$color" "$rank" "$count" "$domain" "$RESET"
-  done < <(head -n "$MAIL_TOP" "$file" 2>/dev/null)
+    printf '  %-4d %-32.32s %9s %9s %10s %12s\n' "$rank" "$address" "$submitted" "$messages" "$deliveries" "$bytes"
+    (( VERBOSE == 1 )) && printf '       period: %s -> %s\n' "$first" "$last"
+  done <"$file"
   (( rank == 0 )) && printf '  %sнет данных%s\n' "$DIM" "$RESET"
 }
 
-analyze_postfix_mail_flow() {
-  local logfile="$1" outdir="$2"
-  : >"$outdir/incoming-domains.txt"
-  : >"$outdir/outgoing-domains.txt"
-  : >"$outdir/mail-flow-summary.txt"
-
-  awk -v incoming_file="$outdir/incoming.raw" \
-      -v outgoing_file="$outdir/outgoing.raw" \
-      -v summary_file="$outdir/mail-flow-summary.txt" '
-    function clean_domain(addr, d) {
-      d=tolower(addr)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", d)
-      gsub(/^<|>$/, "", d)
-      if (d == "" || d == "-" || d == "mailer-daemon" || d !~ /@/) return ""
-      sub(/^.*@/, "", d)
-      sub(/[>;,].*$/, "", d)
-      gsub(/^\[|\]$/, "", d)
-      return d
-    }
-    {
-      qid=""
-      if (match($0, /[A-F0-9][A-F0-9][A-F0-9][A-F0-9][A-F0-9]+: /)) {
-        qid=substr($0, RSTART, RLENGTH-2)
-      }
-    }
-    /postfix\/qmgr/ && / from=<[^>]*>/ {
-      if (qid != "" && match($0, / from=<[^>]*>/)) {
-        sender=substr($0, RSTART+7, RLENGTH-8)
-        from_addr[qid]=sender
-      }
-      next
-    }
-    /postfix\/(smtp|lmtp|local|virtual|pipe)/ && / status=sent/ {
-      recipient=""
-      if (match($0, / to=<[^>]*>/)) recipient=substr($0, RSTART+5, RLENGTH-6)
-      from_domain=(qid in from_addr ? clean_domain(from_addr[qid]) : "")
-      to_domain=clean_domain(recipient)
-
-      if ($0 ~ /postfix\/smtp/) {
-        if (to_domain != "") {
-          print to_domain >> outgoing_file
-          outgoing++
-        }
-      } else if ($0 ~ /postfix\/(lmtp|local|virtual|pipe)/) {
-        if (from_domain != "") {
-          print from_domain >> incoming_file
-          incoming++
-        }
-      }
-    }
-    END {
-      print "incoming=" (incoming+0) > summary_file
-      print "outgoing=" (outgoing+0) >> summary_file
-    }
-  ' "$logfile" 2>/dev/null || true
-
-  if [[ -s "$outdir/incoming.raw" ]]; then
-    sort "$outdir/incoming.raw" | uniq -c | sort -rn >"$outdir/incoming-domains.txt"
-  fi
-  if [[ -s "$outdir/outgoing.raw" ]]; then
-    sort "$outdir/outgoing.raw" | uniq -c | sort -rn >"$outdir/outgoing-domains.txt"
-  fi
+print_domain_stats_table() {
+  local file="$1" title="$2" domain count rank=0
+  printf '%s%s%s\n' "$BOLD" "$title" "$RESET"
+  printf '  %s%-4s %-50s %10s%s\n' "$DIM" "#" "DOMAIN" "COUNT" "$RESET"
+  while IFS=$'\t' read -r domain count; do
+    [[ "$count" =~ ^[0-9]+$ ]] || continue
+    rank=$((rank+1))
+    printf '  %-4d %-50.50s %10s\n' "$rank" "$domain" "$count"
+  done <"$file"
+  (( rank == 0 )) && printf '  %sнет данных%s\n' "$DIM" "$RESET"
 }
 
+load_mail_stats_summary() {
+  while IFS=$'\t' read -r key value; do
+    case "$key" in
+      outbound_messages) MAIL_OUTBOUND_MESSAGES="$value" ;;
+      authenticated_submissions) MAIL_AUTH_SUBMISSIONS="$value" ;;
+      authenticated_outbound_messages) MAIL_AUTH_OUTBOUND_MESSAGES="$value" ;;
+      outbound_deliveries) MAIL_OUTBOUND_DELIVERIES="$value" ;;
+      incoming_messages) MAIL_INCOMING_MESSAGES="$value" ;;
+      incoming_deliveries) MAIL_INCOMING_DELIVERIES="$value" ;;
+      bounced_deliveries) MAIL_BOUNCED_DELIVERIES="$value" ;;
+      deferred_deliveries) MAIL_DEFERRED_DELIVERIES="$value" ;;
+      outbound_bytes) MAIL_OUTBOUND_BYTES="$value" ;;
+      lines_scanned) MAIL_LINES_SCANNED="$value" ;;
+      lines_in_period) MAIL_LINES_IN_PERIOD="$value" ;;
+      observed_from) MAIL_OBSERVED_FROM="$value" ;;
+      observed_to) MAIL_OBSERVED_TO="$value" ;;
+    esac
+  done < <(python3 - "$MAIL_STATS_JSON" <<'PYSUMMARY'
+import json, sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+totals = data.get("totals", {})
+for key in (
+    "outbound_messages", "authenticated_submissions", "authenticated_outbound_messages", "outbound_deliveries",
+    "incoming_messages", "incoming_deliveries", "bounced_deliveries",
+    "deferred_deliveries", "outbound_bytes"
+):
+    print(f"{key}\t{totals.get(key, 0)}")
+source = data.get("source", {})
+print(f"lines_scanned\t{source.get('lines_scanned', 0)}")
+print(f"lines_in_period\t{source.get('lines_in_period', 0)}")
+period = data.get("period", {})
+print(f"observed_from\t{period.get('observed_from') or '-'}")
+print(f"observed_to\t{period.get('observed_to') or '-'}")
+PYSUMMARY
+  )
+}
+
+detect_mail_platform
 banner
 section "AUDIT CONTEXT"
 kv "Date" "$(date --iso-8601=seconds 2>/dev/null || date)"
 kv "Host" "$(hostname 2>/dev/null || true)"
 kv "FQDN / TLS name" "$MAIL_HOST"
 kv "Mail domain" "${MAIL_DOMAIN:-(not specified)}"
-kv "Analysis period" "$DAYS day(s)"
+kv "Platform" "$MAIL_PLATFORM ${PLATFORM_VERSION:+($PLATFORM_VERSION)}"
+kv "Analysis period" "$AUDIT_FROM -> $AUDIT_TO"
 kv "Kernel" "$(uname -srmo 2>/dev/null || uname -a)"
 if [[ -r /etc/os-release ]]; then
+  # shellcheck source=/dev/null
   . /etc/os-release
   kv "OS" "${PRETTY_NAME:-unknown}"
 fi
@@ -492,7 +870,11 @@ if (( EUID == 0 )); then
 else
   warn "Запущено не от root: часть данных будет недоступна"
 fi
-[[ "$MAIL_HOST" == *.* ]] && pass "Hostname выглядит как FQDN" || warn "Hostname '$MAIL_HOST' не выглядит как FQDN"
+if [[ "$MAIL_HOST" == *.* ]]; then
+  pass "Hostname выглядит как FQDN"
+else
+  warn "Hostname '$MAIL_HOST' не выглядит как FQDN"
+fi
 
 section "PATCHES / REBOOT"
 if have apt-get; then
@@ -511,8 +893,11 @@ if have apt-get; then
     newest_list="$(find /var/lib/apt/lists -type f -printf '%T@\n' 2>/dev/null | sort -nr | head -1 | cut -d. -f1)"
     if [[ "$newest_list" =~ ^[0-9]+$ ]]; then
       age_days=$(( ($(date +%s) - newest_list) / 86400 ))
-      (( age_days > 7 )) && warn "APT metadata старше 7 дней: ${age_days} дн.; число обновлений может быть неточным" \
-                        || info "Возраст APT metadata: ${age_days} дн."
+      if (( age_days > 7 )); then
+        warn "APT metadata старше 7 дней: ${age_days} дн.; число обновлений может быть неточным"
+      else
+        info "Возраст APT metadata: ${age_days} дн."
+      fi
     fi
   fi
   if have apt-config; then
@@ -520,17 +905,25 @@ if have apt-get; then
   fi
 elif have dnf; then
   dnf_output="$TMPROOT/dnf-check.txt"
-  timeout 120 dnf -q check-update >"$dnf_output" 2>/dev/null || rc=$?
+  timeout 120 dnf -C -q check-update >"$dnf_output" 2>/dev/null || rc=$?
   rc="${rc:-0}"
   updates="$(awk 'NF>=3 && $1 !~ /^(Last|Obsoleting|Security:|$)/ {c++} END{print c+0}' "$dnf_output")"
   echo "Pending packages: $updates"
-  (( updates > 0 )) && warn "Есть доступные DNF-обновления: $updates" || pass "DNF не сообщил доступных обновлений"
+  if (( updates > 0 )); then
+    warn "Есть доступные DNF-обновления: $updates"
+  else
+    pass "DNF не сообщил доступных обновлений"
+  fi
 elif have yum; then
   yum_output="$TMPROOT/yum-check.txt"
-  timeout 120 yum -q check-update >"$yum_output" 2>/dev/null || true
+  timeout 120 yum -C -q check-update >"$yum_output" 2>/dev/null || true
   updates="$(awk 'NF>=3 && $1 !~ /^(Loaded|Security:|$)/ {c++} END{print c+0}' "$yum_output")"
   echo "Pending packages: $updates"
-  (( updates > 0 )) && warn "Есть доступные YUM-обновления: $updates" || pass "YUM не сообщил доступных обновлений"
+  if (( updates > 0 )); then
+    warn "Есть доступные YUM-обновления: $updates"
+  else
+    pass "YUM не сообщил доступных обновлений"
+  fi
 else
   info "Поддерживаемый пакетный менеджер не найден"
 fi
@@ -541,8 +934,11 @@ else
   pass "Маркер reboot-required отсутствует"
 fi
 
-section "MAIL STACK DETECTION"
-if systemctl is-active --quiet postfix.service 2>/dev/null; then
+section "MAIL PLATFORM / STACK DETECTION"
+if [[ "$MAIL_PLATFORM" == "mailcow" ]]; then
+  MTA="postfix"
+  IMAP_SERVER="dovecot"
+elif systemctl is-active --quiet postfix.service 2>/dev/null; then
   MTA="postfix"
 elif systemctl is-active --quiet exim4.service 2>/dev/null || systemctl is-active --quiet exim.service 2>/dev/null; then
   MTA="exim"
@@ -570,22 +966,64 @@ elif have courierauthconfig || is_systemd_unit_known courier-imap.service; then
   IMAP_SERVER="courier"
 fi
 
-echo "Detected MTA:        $MTA"
-echo "Detected IMAP/POP3:  $IMAP_SERVER"
+echo "Detected platform:   $MAIL_PLATFORM"
+echo "Platform version:    ${PLATFORM_VERSION:-unknown}"
+echo "Detected MTA:         $MTA"
+echo "Detected IMAP/POP3:   $IMAP_SERVER"
 
 if have systemctl; then
   for unit in postfix.service exim4.service exim.service sendmail.service opensmtpd.service \
               dovecot.service courier-imap.service courier-pop.service rspamd.service \
               spamassassin.service amavis.service clamav-daemon.service clamd@scan.service \
               opendkim.service opendmarc.service nginx.service apache2.service httpd.service \
-              fail2ban.service; do
+              fail2ban.service iredapd.service sogo.service mariadb.service mysql.service \
+              redis-server.service; do
     is_systemd_unit_known "$unit" && unit_state_line "$unit"
   done
 fi
 
+if [[ "$MAIL_PLATFORM" == "mailcow" ]]; then
+  mailcow_postfix_running="$(timeout 8 docker ps -q --filter label=com.docker.compose.service=postfix-mailcow 2>/dev/null | head -1)"
+  mailcow_dovecot_running="$(timeout 8 docker ps -q --filter label=com.docker.compose.service=dovecot-mailcow 2>/dev/null | head -1)"
+  if [[ -n "$mailcow_postfix_running" ]]; then
+    pass "Mailcow Postfix container активен"
+  else
+    critical "Mailcow Postfix container не запущен"
+  fi
+  if [[ -n "$mailcow_dovecot_running" ]]; then
+    pass "Mailcow Dovecot container активен"
+  else
+    critical "Mailcow Dovecot container не запущен"
+  fi
+  mailcow_project="$(timeout 8 docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' \
+    "$MAILCOW_POSTFIX_CONTAINER" 2>/dev/null || true)"
+  if [[ -n "$mailcow_project" ]]; then
+    echo "-- Mailcow containers --"
+    timeout 12 docker ps -a --filter "label=com.docker.compose.project=$mailcow_project" \
+      --format 'table {{.Names}}\t{{.Status}}' 2>/dev/null || true
+    mailcow_unhealthy="$(timeout 12 docker ps -a --filter "label=com.docker.compose.project=$mailcow_project" \
+      --format '{{.Names}}\t{{.Status}}' 2>/dev/null | grep -Eic 'unhealthy|restarting|exited' || true)"
+    if (( ${mailcow_unhealthy:-0} > 0 )); then
+      critical "Mailcow: контейнеры unhealthy/restarting/exited: $mailcow_unhealthy"
+    else
+      pass "Mailcow: проблемных состояний контейнеров не найдено"
+    fi
+  fi
+elif [[ "$MAIL_PLATFORM" == "mailinabox" ]]; then
+  pass "Mail-in-a-Box обнаружен; используются штатные Postfix/Dovecot логи"
+elif [[ "$MAIL_PLATFORM" == "iredmail" ]]; then
+  pass "iRedMail обнаружен по /etc/iredmail-release"
+fi
+
 case "$MTA" in
   postfix)
-    systemctl is-active --quiet postfix 2>/dev/null && pass "Postfix активен" || critical "Postfix обнаружен, но не active"
+    if [[ "$MAIL_PLATFORM" == "mailcow" ]]; then
+      : # Состояние контейнера проверено выше.
+    elif systemctl is-active --quiet postfix 2>/dev/null; then
+      pass "Postfix активен"
+    else
+      critical "Postfix обнаружен, но не active"
+    fi
     ;;
   exim)
     if systemctl is-active --quiet exim4 2>/dev/null || systemctl is-active --quiet exim 2>/dev/null; then
@@ -595,10 +1033,18 @@ case "$MTA" in
     fi
     ;;
   opensmtpd)
-    systemctl is-active --quiet opensmtpd 2>/dev/null && pass "OpenSMTPD активен" || critical "OpenSMTPD обнаружен, но не active"
+    if systemctl is-active --quiet opensmtpd 2>/dev/null; then
+      pass "OpenSMTPD активен"
+    else
+      critical "OpenSMTPD обнаружен, но не active"
+    fi
     ;;
   sendmail)
-    systemctl is-active --quiet sendmail 2>/dev/null && pass "Sendmail активен" || warn "Sendmail обнаружен, но systemd не подтверждает active"
+    if systemctl is-active --quiet sendmail 2>/dev/null; then
+      pass "Sendmail активен"
+    else
+      warn "Sendmail обнаружен, но systemd не подтверждает active"
+    fi
     ;;
   none)
     critical "MTA не обнаружен"
@@ -606,9 +1052,19 @@ case "$MTA" in
 esac
 
 if [[ "$IMAP_SERVER" == "dovecot" ]]; then
-  systemctl is-active --quiet dovecot 2>/dev/null && pass "Dovecot активен" || critical "Dovecot обнаружен, но не active"
+  if [[ "$MAIL_PLATFORM" == "mailcow" ]]; then
+    : # Состояние контейнера проверено выше.
+  elif systemctl is-active --quiet dovecot 2>/dev/null; then
+    pass "Dovecot активен"
+  else
+    critical "Dovecot обнаружен, но не active"
+  fi
 elif [[ "$IMAP_SERVER" == "courier" ]]; then
-  systemctl is-active --quiet courier-imap 2>/dev/null && pass "Courier IMAP активен" || warn "Courier обнаружен, но не active"
+  if systemctl is-active --quiet courier-imap 2>/dev/null; then
+    pass "Courier IMAP активен"
+  else
+    warn "Courier обнаружен, но не active"
+  fi
 else
   info "IMAP/POP3-сервис не обнаружен; для relay-only SMTP это нормально"
 fi
@@ -636,11 +1092,27 @@ if have sshd; then
   else
     pass "SSH: прямой root login запрещён"
   fi
-  [[ "$pass_auth" == "yes" ]] && warn "SSH: PasswordAuthentication=yes" || pass "SSH: password authentication отключена"
-  [[ "$pubkey_auth" == "yes" ]] && pass "SSH: public key authentication включена" || warn "SSH: PubkeyAuthentication отключена"
-  [[ "$kbd_auth" == "yes" ]] && info "SSH: keyboard-interactive включён; проверь PAM/MFA" || true
-  [[ "$x11" == "yes" ]] && warn "SSH: X11Forwarding=yes на почтовом сервере" || pass "SSH: X11 forwarding отключён"
-  [[ "$maxtries" =~ ^[0-9]+$ ]] && (( maxtries > 6 )) && warn "SSH: MaxAuthTries=$maxtries" || true
+  if [[ "$pass_auth" == "yes" ]]; then
+    warn "SSH: PasswordAuthentication=yes"
+  else
+    pass "SSH: password authentication отключена"
+  fi
+  if [[ "$pubkey_auth" == "yes" ]]; then
+    pass "SSH: public key authentication включена"
+  else
+    warn "SSH: PubkeyAuthentication отключена"
+  fi
+  if [[ "$kbd_auth" == "yes" ]]; then
+    info "SSH: keyboard-interactive включён; проверь PAM/MFA"
+  fi
+  if [[ "$x11" == "yes" ]]; then
+    warn "SSH: X11Forwarding=yes на почтовом сервере"
+  else
+    pass "SSH: X11 forwarding отключён"
+  fi
+  if [[ "$maxtries" =~ ^[0-9]+$ ]] && (( maxtries > 6 )); then
+    warn "SSH: MaxAuthTries=$maxtries"
+  fi
 else
   warn "sshd не найден или недоступен"
   ssh_port="22"
@@ -701,7 +1173,9 @@ if have nft; then
   fi
 fi
 if (( firewall_active == 0 )) && have iptables; then
-  (( VERBOSE == 1 )) && iptables -L -n --line-numbers 2>/dev/null | sed -n '1,120p' || true
+  if (( VERBOSE == 1 )); then
+    iptables -L -n --line-numbers 2>/dev/null | sed -n '1,120p' || true
+  fi
   if iptables -S 2>/dev/null | grep -qE '^-A '; then
     pass "Найдены iptables rules"; firewall_active=1
   fi
@@ -710,6 +1184,15 @@ fi
 
 section "BRUTE-FORCE PROTECTION"
 bruteforce_protection=0
+if [[ "$MAIL_PLATFORM" == "mailcow" ]] && have docker; then
+  mailcow_netfilter="$(timeout 8 docker ps -q --filter label=com.docker.compose.service=netfilter-mailcow 2>/dev/null | head -1)"
+  if [[ -n "$mailcow_netfilter" ]]; then
+    pass "Mailcow netfilter container активен"
+    bruteforce_protection=1
+  else
+    critical "Mailcow netfilter container не запущен"
+  fi
+fi
 if have fail2ban-client; then
   if fail2ban-client ping 2>/dev/null | grep -qi pong; then
     pass "Fail2ban отвечает"; bruteforce_protection=1
@@ -740,7 +1223,9 @@ else
 fi
 if systemctl is-active --quiet crowdsec.service 2>/dev/null; then
   pass "CrowdSec активен"; bruteforce_protection=1
-  have cscli && cscli metrics 2>/dev/null | sed -n '1,120p' || true
+  if have cscli; then
+    cscli metrics 2>/dev/null | sed -n '1,120p' || true
+  fi
 fi
 if systemctl is-active --quiet sshguard.service 2>/dev/null; then
   pass "sshguard активен"; bruteforce_protection=1
@@ -832,57 +1317,79 @@ kv "SSH sessions opened" "${ssh_sessions:-0}"
 print_ip_table "$TMPROOT/ssh-top-ips.txt" "Top source IPs — SSH failures"
 print_ip_table "$TMPROOT/ssh-accepted-ips.txt" "Top source IPs — successful SSH logins"
 ssh_rate=$(( ${ssh_failed:-0} / (DAYS > 0 ? DAYS : 1) ))
-(( ssh_rate > 100 )) && warn "Высокая интенсивность SSH failures: около $ssh_rate событий/сутки" || true
+if (( ssh_rate > 100 )); then
+  warn "Высокая интенсивность SSH failures: около $ssh_rate событий/сутки"
+fi
 
 mail_log="$TMPROOT/mail.log"
-collect_journal "$mail_log" postfix.service exim4.service exim.service dovecot.service courier-imap.service courier-pop.service
-if [[ ! -s "$mail_log" ]]; then
-  collect_fallback_logs "$mail_log" '/var/log/mail.log*' '/var/log/maillog*' '/var/log/exim4/mainlog*' '/var/log/exim/mainlog*'
-  info "Почтовая статистика получена из файлов логов; точный период может отличаться от $DAYS дней"
+collect_mail_logs "$mail_log"
+mail_auth_log="$mail_log"
+if [[ -s "$mail_log" && -r "$SCRIPT_DIR/lib/mail_stats.py" ]] && have python3; then
+  if filter_log_period "$mail_log" "$TMPROOT/mail-period.log"; then
+    mail_auth_log="$TMPROOT/mail-period.log"
+  else
+    warn "Не удалось отфильтровать auth-события по выбранному периоду"
+  fi
+fi
+if [[ "$MAIL_PLATFORM" == "mailcow" ]]; then
+  info "Почтовые события получены из Docker logs контейнера postfix-mailcow"
+elif [[ -s "$mail_log" ]]; then
+  info "Почтовые события получены из системных и ротационных mail logs"
 fi
 info "Анализирую ошибки почтовой авторизации..."
-mail_auth_failed="$(grep -Eic 'SASL.*authentication failed|auth failed|authentication failure|Aborted login|LOGIN FAILED|535[ -].*auth|authenticator failed' "$mail_log" 2>/dev/null || true)"
+mail_auth_failed="$(grep -Eic 'SASL.*authentication failed|auth failed|authentication failure|Aborted login|LOGIN FAILED|535[ -].*auth|authenticator failed' "$mail_auth_log" 2>/dev/null || true)"
 kv "Mail auth failures" "${mail_auth_failed:-0}"
-grep -Ei 'SASL.*authentication failed|auth failed|authentication failure|Aborted login|LOGIN FAILED|535[ -].*auth|authenticator failed' "$mail_log" 2>/dev/null | extract_source_ips >"$TMPROOT/mail-top-ips.txt" || true
+grep -Ei 'SASL.*authentication failed|auth failed|authentication failure|Aborted login|LOGIN FAILED|535[ -].*auth|authenticator failed' "$mail_auth_log" 2>/dev/null | extract_source_ips >"$TMPROOT/mail-top-ips.txt" || true
 print_ip_table "$TMPROOT/mail-top-ips.txt" "Top source IPs — mail authentication failures"
 mail_rate=$(( ${mail_auth_failed:-0} / (DAYS > 0 ? DAYS : 1) ))
-(( mail_rate > 300 )) && warn "Высокая интенсивность mail auth failures: около $mail_rate событий/сутки" || true
+if (( mail_rate > 300 )); then
+  warn "Высокая интенсивность mail auth failures: около $mail_rate событий/сутки"
+fi
 
 
 section "MAIL FLOW ANALYTICS"
-if [[ "$MTA" == "postfix" ]]; then
-  # Для корреляции Postfix Queue ID нужны полные строки вида postfix/qmgr и
-  # postfix/smtp. journalctl -o cat удаляет этот префикс, поэтому статистика
-  # могла показывать нули. Для mail-flow сначала читаем обычные mail.log*,
-  # как делал исходный mail_analyzer.sh, и только затем используем journal.
-  flow_log="$TMPROOT/mail-flow.log"
-  collect_fallback_logs "$flow_log" '/var/log/mail.log*' '/var/log/maillog*'
+if [[ "$MTA" == "postfix" && -s "$mail_log" && -r "$SCRIPT_DIR/lib/mail_stats.py" ]] && have python3; then
+  mail_stats_args=(
+    "$SCRIPT_DIR/lib/mail_stats.py"
+    --input "$mail_log"
+    --from "$AUDIT_FROM"
+    --to "$AUDIT_TO"
+    --top "$MAIL_TOP"
+    --json-output "$MAIL_STATS_JSON"
+    --output-dir "$TMPROOT/mail-stats"
+  )
+  (( REDACT == 1 )) && mail_stats_args+=( --redact )
+  if python3 "${mail_stats_args[@]}"; then
+    load_mail_stats_summary
+    kv "Requested period" "$AUDIT_FROM -> $AUDIT_TO"
+    kv "Observed log period" "${MAIL_OBSERVED_FROM:--} -> ${MAIL_OBSERVED_TO:--}"
+    kv "Log lines" "${MAIL_LINES_IN_PERIOD:-0} in period / ${MAIL_LINES_SCANNED:-0} scanned"
+    kv "Outbound messages" "${MAIL_OUTBOUND_MESSAGES:-0} unique message(s)"
+    kv "Authenticated submissions" "${MAIL_AUTH_SUBMISSIONS:-0} accepted message(s)"
+    kv "Authenticated delivered" "${MAIL_AUTH_OUTBOUND_MESSAGES:-0} message(s) with successful external delivery"
+    kv "Outbound deliveries" "${MAIL_OUTBOUND_DELIVERIES:-0} recipient delivery(s)"
+    kv "Incoming messages" "${MAIL_INCOMING_MESSAGES:-0} message(s), ${MAIL_INCOMING_DELIVERIES:-0} delivery(s)"
+    kv "Bounced / deferred" "${MAIL_BOUNCED_DELIVERIES:-0} / ${MAIL_DEFERRED_DELIVERIES:-0}"
+    kv "Outbound payload" "${MAIL_OUTBOUND_BYTES:-0} byte(s) from Postfix queue metadata"
 
-  if [[ ! -s "$flow_log" ]] && have journalctl; then
-    journalctl --since "$DAYS days ago" --no-pager -o short-iso       -u postfix.service >"$flow_log" 2>/dev/null || true
-  fi
+    print_mailbox_stats_table "$TMPROOT/mail-stats/top-users.tsv" "Top authenticated SMTP users — успешно отправленные сообщения"
+    print_mailbox_stats_table "$TMPROOT/mail-stats/top-senders.tsv" "Top envelope senders — успешно отправленные сообщения"
+    print_domain_stats_table "$TMPROOT/mail-stats/top-sender-domains.tsv" "Top sender domains — уникальные отправленные сообщения"
+    print_domain_stats_table "$TMPROOT/mail-stats/top-recipient-domains.tsv" "Top recipient domains — успешные внешние доставки"
+    print_domain_stats_table "$TMPROOT/mail-stats/top-incoming-domains.tsv" "Top incoming domains — локально доставленные сообщения"
 
-  if [[ -s "$flow_log" ]]; then
-    analyze_postfix_mail_flow "$flow_log" "$TMPROOT"
-    incoming_total="$(awk -F= '$1=="incoming"{print $2}' "$TMPROOT/mail-flow-summary.txt" 2>/dev/null || echo 0)"
-    outgoing_total="$(awk -F= '$1=="outgoing"{print $2}' "$TMPROOT/mail-flow-summary.txt" 2>/dev/null || echo 0)"
-    incoming_unique="$(wc -l <"$TMPROOT/incoming-domains.txt" 2>/dev/null | tr -d ' ' || echo 0)"
-    outgoing_unique="$(wc -l <"$TMPROOT/outgoing-domains.txt" 2>/dev/null | tr -d ' ' || echo 0)"
-
-    kv "Incoming delivered" "${incoming_total:-0} message(s), ${incoming_unique:-0} unique sender domain(s)"
-    kv "Outgoing delivered" "${outgoing_total:-0} message(s), ${outgoing_unique:-0} unique recipient domain(s)"
-    print_domain_table "$TMPROOT/incoming-domains.txt" "Top incoming domains — откуда пришли успешно доставленные письма"
-    print_domain_table "$TMPROOT/outgoing-domains.txt" "Top outgoing domains — куда успешно отправлены письма"
-
-    if [[ "${incoming_total:-0}" == 0 && "${outgoing_total:-0}" == 0 ]]; then
-      warn "В логах не найдены связанные Postfix qmgr + status=sent события; проверь наличие /var/log/mail.log* и формат логов"
+    if (( ${MAIL_OUTBOUND_MESSAGES:-0} == 0 && ${MAIL_INCOMING_MESSAGES:-0} == 0 )); then
+      warn "В выбранном периоде не найдены связанные Postfix queue + delivery события"
     else
-      pass "Mail-flow статистика успешно построена по Postfix Queue ID"
+      pass "Mail-flow статистика построена по Queue ID с фильтрацией периода"
     fi
-    info "Статистика построена по доступным Postfix mail.log*; ротационные .gz также учитываются"
   else
-    warn "Postfix обнаружен, но mail.log/maillog для анализа трафика не найдены"
+    warn "Не удалось построить расширенную Postfix статистику"
   fi
+elif [[ "$MTA" == "postfix" && ! -s "$mail_log" ]]; then
+  warn "Postfix обнаружен, но доступные mail logs не найдены"
+elif [[ "$MTA" == "postfix" ]]; then
+  warn "Для расширенной статистики требуются python3 и lib/mail_stats.py"
 else
   info "Mail flow analytics сейчас поддерживает Postfix; для $MTA раздел пропущен"
 fi
@@ -890,14 +1397,14 @@ fi
 section "MTA / RELAY CONFIGURATION"
 case "$MTA" in
   postfix)
-    if have postconf; then
-      postconf myhostname mydomain myorigin mydestination relay_domains mynetworks mynetworks_style \
-               smtpd_relay_restrictions smtpd_recipient_restrictions smtpd_sasl_auth_enable \
-               smtpd_tls_security_level smtpd_tls_protocols smtpd_tls_mandatory_protocols \
-               smtp_tls_security_level 2>/dev/null || true
-      relay_restrictions="$(postconf -h smtpd_relay_restrictions 2>/dev/null || true)"
-      recipient_restrictions="$(postconf -h smtpd_recipient_restrictions 2>/dev/null || true)"
-      mynetworks="$(postconf -h mynetworks 2>/dev/null || true)"
+    if have postconf || [[ "$MAIL_PLATFORM" == "mailcow" && -n "${MAILCOW_POSTFIX_CONTAINER:-}" ]]; then
+      run_postconf myhostname mydomain myorigin mydestination relay_domains mynetworks mynetworks_style \
+        smtpd_relay_restrictions smtpd_recipient_restrictions smtpd_sasl_auth_enable \
+        smtpd_tls_security_level smtpd_tls_protocols smtpd_tls_mandatory_protocols \
+        smtp_tls_security_level 2>/dev/null || true
+      relay_restrictions="$(run_postconf -h smtpd_relay_restrictions 2>/dev/null || true)"
+      recipient_restrictions="$(run_postconf -h smtpd_recipient_restrictions 2>/dev/null || true)"
+      mynetworks="$(run_postconf -h mynetworks 2>/dev/null || true)"
       if grep -Eq 'reject_unauth_destination|defer_unauth_destination' <<<"$relay_restrictions $recipient_restrictions"; then
         pass "Postfix: найдена защита reject/defer_unauth_destination"
       else
@@ -908,6 +1415,8 @@ case "$MTA" in
       else
         pass "Postfix: явного 0.0.0.0/0 или ::/0 в mynetworks нет"
       fi
+    else
+      warn "Postfix обнаружен, но postconf недоступен"
     fi
     ;;
   exim)
@@ -947,9 +1456,10 @@ if have openssl && have timeout && have ss; then
 else
   warn "Для TLS-проверок требуются openssl, timeout и ss"
 fi
-if [[ "$IMAP_SERVER" == "dovecot" ]] && have doveconf; then
-  doveconf -h ssl_min_protocol 2>/dev/null | sed 's/^/Dovecot ssl_min_protocol: /' || true
-  doveconf -h ssl 2>/dev/null | sed 's/^/Dovecot ssl: /' || true
+if [[ "$IMAP_SERVER" == "dovecot" ]] \
+  && { have doveconf || [[ "$MAIL_PLATFORM" == "mailcow" && -n "${MAILCOW_DOVECOT_CONTAINER:-}" ]]; }; then
+  run_doveconf -h ssl_min_protocol 2>/dev/null | sed 's/^/Dovecot ssl_min_protocol: /' || true
+  run_doveconf -h ssl 2>/dev/null | sed 's/^/Dovecot ssl: /' || true
 fi
 
 if (( DEEP == 1 )) && have openssl && have ss; then
@@ -971,20 +1481,80 @@ if [[ -n "$MAIL_DOMAIN" ]]; then
     echo "-- A/AAAA for $MAIL_HOST --"; dig +short A "$MAIL_HOST" || true; dig +short AAAA "$MAIL_HOST" || true
     spf="$(dig +short TXT "$MAIL_DOMAIN" | tr -d '"' | grep -i 'v=spf1' || true)"
     dmarc="$(dig +short TXT "_dmarc.$MAIL_DOMAIN" | tr -d '"' | grep -i 'v=DMARC1' || true)"
-    [[ -n "$spf" ]] && { echo "SPF: $spf"; pass "SPF опубликован"; } || warn "SPF для $MAIL_DOMAIN не найден"
-    [[ -n "$dmarc" ]] && { echo "DMARC: $dmarc"; pass "DMARC опубликован"; } || warn "DMARC для $MAIL_DOMAIN не найден"
+    mta_sts="$(dig +short TXT "_mta-sts.$MAIL_DOMAIN" | tr -d '"' | grep -i 'v=STSv1' || true)"
+    tls_rpt="$(dig +short TXT "_smtp._tls.$MAIL_DOMAIN" | tr -d '"' | grep -i 'v=TLSRPTv1' || true)"
+    if [[ -n "$spf" ]]; then
+      echo "SPF: $spf"
+      spf_count="$(grep -c . <<<"$spf")"
+      if (( spf_count > 1 )); then
+        critical "Опубликовано несколько SPF-записей: $spf_count"
+      else
+        pass "SPF опубликован одной записью"
+      fi
+    else
+      warn "SPF для $MAIL_DOMAIN не найден"
+    fi
+    if [[ -n "$dmarc" ]]; then
+      echo "DMARC: $dmarc"
+      dmarc_policy="$(sed -nE 's/.*(^|;[[:space:]]*)p=([^;[:space:]]+).*/\2/ip' <<<"$dmarc" | head -1 | tr '[:upper:]' '[:lower:]')"
+      case "$dmarc_policy" in
+        reject) pass "DMARC policy=reject" ;;
+        quarantine) pass "DMARC policy=quarantine" ;;
+        none) warn "DMARC policy=none: включён только мониторинг" ;;
+        *) warn "DMARC опубликован, но policy p= не распознана" ;;
+      esac
+    else
+      warn "DMARC для $MAIL_DOMAIN не найден"
+    fi
     if [[ -n "$DKIM_SELECTOR" ]]; then
       dkim="$(dig +short TXT "$DKIM_SELECTOR._domainkey.$MAIL_DOMAIN" | tr -d '"' || true)"
-      [[ "$dkim" == *"v=DKIM1"* || "$dkim" == *"p="* ]] && { echo "DKIM: $dkim"; pass "DKIM опубликован"; } \
-                                                        || warn "DKIM не найден для selector=$DKIM_SELECTOR"
+      if [[ "$dkim" == *"v=DKIM1"* || "$dkim" == *"p="* ]]; then
+        echo "DKIM: $dkim"
+        pass "DKIM опубликован"
+        dkim_key="$(sed -nE 's/.*(^|;[[:space:]]*)p=([^;[:space:]]+).*/\2/p' <<<"$dkim" | head -1)"
+        if [[ -n "$dkim_key" ]] && have base64 && have openssl; then
+          if printf '%s' "$dkim_key" | base64 -d >"$TMPROOT/dkim-key.der" 2>/dev/null; then
+            dkim_key_info="$(openssl pkey -pubin -inform DER -in "$TMPROOT/dkim-key.der" -text -noout 2>/dev/null | head -1 || true)"
+            echo "DKIM key: ${dkim_key_info:-format not recognized}"
+            dkim_bits="$(sed -nE 's/.*Public-Key: \(([0-9]+) bit\).*/\1/p' <<<"$dkim_key_info")"
+            if [[ "$dkim_bits" =~ ^[0-9]+$ ]] && (( dkim_bits < 1024 )); then
+              critical "DKIM RSA key слишком короткий: $dkim_bits bit"
+            elif [[ "$dkim_bits" =~ ^[0-9]+$ ]] && (( dkim_bits < 2048 )); then
+              warn "DKIM RSA key короче рекомендуемых 2048 bit: $dkim_bits bit"
+            elif [[ "$dkim_bits" =~ ^[0-9]+$ ]]; then
+              pass "DKIM RSA key length: $dkim_bits bit"
+            elif [[ "$dkim_key_info" == *ED25519* ]]; then
+              pass "DKIM использует Ed25519 key"
+            fi
+          fi
+        fi
+      else
+        warn "DKIM не найден для selector=$DKIM_SELECTOR"
+      fi
     else
       info "DKIM не проверялся: selector не задан"
+    fi
+    if [[ -n "$mta_sts" ]]; then
+      echo "MTA-STS: $mta_sts"
+      pass "MTA-STS TXT record опубликован"
+    else
+      info "MTA-STS TXT record не найден"
+    fi
+    if [[ -n "$tls_rpt" ]]; then
+      echo "TLS-RPT: $tls_rpt"
+      pass "SMTP TLS Reporting опубликован"
+    else
+      info "SMTP TLS Reporting record не найден"
     fi
     for ip in $(dig +short A "$MAIL_HOST" 2>/dev/null); do
       ptr="$(dig +short -x "$ip" 2>/dev/null | sed 's/\.$//' | head -1)"
       if [[ -n "$ptr" ]]; then
         echo "PTR $ip -> $ptr"
-        [[ "$ptr" == "$MAIL_HOST" ]] && pass "PTR совпадает с $MAIL_HOST" || warn "PTR $ip указывает на $ptr, а не $MAIL_HOST"
+        if [[ "$ptr" == "$MAIL_HOST" ]]; then
+          pass "PTR совпадает с $MAIL_HOST"
+        else
+          warn "PTR $ip указывает на $ptr, а не $MAIL_HOST"
+        fi
       else
         warn "PTR для $ip отсутствует"
       fi
@@ -1007,7 +1577,11 @@ awk -F: '$7 !~ /(nologin|false|sync|shutdown|halt)$/ {printf "%-24s uid=%-6s hom
 
 if [[ -r /etc/shadow ]]; then
   empty_passwords="$(awk -F: '($2==""){print $1}' /etc/shadow 2>/dev/null | tr '\n' ' ')"
-  [[ -n "$empty_passwords" ]] && critical "Аккаунты с пустым password hash: $empty_passwords" || pass "Пустых password hash не найдено"
+  if [[ -n "$empty_passwords" ]]; then
+    critical "Аккаунты с пустым password hash: $empty_passwords"
+  else
+    pass "Пустых password hash не найдено"
+  fi
 fi
 
 echo "-- sudo NOPASSWD entries --"
@@ -1028,22 +1602,49 @@ while IFS= read -r keyfile; do
 done < <(find /root /home -xdev -type f -name authorized_keys 2>/dev/null | sort)
 (( keys_found == 0 )) && info "authorized_keys не найдены"
 
-section "FILESYSTEM / INODES"
-df -hT -x tmpfs -x devtmpfs 2>/dev/null || df -h 2>/dev/null || true
+section "DISK / FILESYSTEM CAPACITY"
+echo "-- Filesystem capacity --"
+df -hPT -x tmpfs -x devtmpfs 2>/dev/null || df -hP 2>/dev/null || true
 check_usage_table "Filesystem" < <(df -P -x tmpfs -x devtmpfs 2>/dev/null | tail -n +2)
 echo "-- Inodes --"
-df -ih -x tmpfs -x devtmpfs 2>/dev/null || true
+df -iPT -x tmpfs -x devtmpfs 2>/dev/null || true
 check_usage_table "Inode" < <(df -Pi -x tmpfs -x devtmpfs 2>/dev/null | tail -n +2)
+
+mail_storage_path="$(detect_mail_storage_path | head -1)"
+if [[ -n "$mail_storage_path" && -e "$mail_storage_path" ]]; then
+  echo "-- Mail storage filesystem --"
+  kv "Mail storage path" "$mail_storage_path"
+  df -hPT "$mail_storage_path" 2>/dev/null || true
+  if (( DEEP == 1 )); then
+    timeout 120 du -shx -- "$mail_storage_path" 2>/dev/null | sed 's/^/Mail storage apparent usage: /' || true
+  fi
+else
+  info "Путь mailbox storage автоматически не определён"
+fi
 
 section "MAIL QUEUE"
 case "$MTA" in
   postfix)
-    if have postqueue; then
-      postqueue -p 2>/dev/null | tail -n 20 || true
-      queue_count="$(postqueue -p 2>/dev/null | grep -Ec '^[A-F0-9]+[*!]?[[:space:]]' || true)"
+    postfix_queue_output="$TMPROOT/postfix-queue.txt"
+    : >"$postfix_queue_output"
+    if [[ "$MAIL_PLATFORM" == "mailcow" && -n "${MAILCOW_POSTFIX_CONTAINER:-}" ]]; then
+      timeout 20 docker exec "$MAILCOW_POSTFIX_CONTAINER" postqueue -p >"$postfix_queue_output" 2>/dev/null || true
+    elif have postqueue; then
+      postqueue -p >"$postfix_queue_output" 2>/dev/null || true
+    fi
+    if [[ -s "$postfix_queue_output" ]]; then
+      tail -n 20 "$postfix_queue_output" || true
+      queue_count="$(grep -Ec '^[A-F0-9]+[*!]?[[:space:]]' "$postfix_queue_output" || true)"
       echo "Approx. queued messages: $queue_count"
-      (( queue_count > 1000 )) && critical "Очень большая Postfix queue: $queue_count" \
-                                || { (( queue_count > 100 )) && warn "Большая Postfix queue: $queue_count" || pass "Размер Postfix queue не выглядит аварийным"; }
+      if (( queue_count > 1000 )); then
+        critical "Очень большая Postfix queue: $queue_count"
+      elif (( queue_count > 100 )); then
+        warn "Большая Postfix queue: $queue_count"
+      else
+        pass "Размер Postfix queue не выглядит аварийным"
+      fi
+    else
+      warn "Postfix queue недоступна для чтения"
     fi
     ;;
   exim)
@@ -1051,12 +1652,19 @@ case "$MTA" in
     if [[ -n "$exim_bin" ]]; then
       queue_count="$($exim_bin -bpc 2>/dev/null || echo '?')"
       echo "Queued messages: $queue_count"
-      [[ "$queue_count" =~ ^[0-9]+$ ]] && (( queue_count > 1000 )) && critical "Очень большая Exim queue: $queue_count" || true
-      [[ "$queue_count" =~ ^[0-9]+$ ]] && (( queue_count > 100 && queue_count <= 1000 )) && warn "Большая Exim queue: $queue_count" || true
+      if [[ "$queue_count" =~ ^[0-9]+$ ]]; then
+        if (( queue_count > 1000 )); then
+          critical "Очень большая Exim queue: $queue_count"
+        elif (( queue_count > 100 )); then
+          warn "Большая Exim queue: $queue_count"
+        fi
+      fi
     fi
     ;;
   sendmail)
-    have mailq && mailq 2>/dev/null | tail -n 40 || true
+    if have mailq; then
+      mailq 2>/dev/null | tail -n 40 || true
+    fi
     ;;
 esac
 
@@ -1102,7 +1710,11 @@ if have aa-status; then
 elif have getenforce; then
   selinux_state="$(getenforce 2>/dev/null || true)"
   echo "SELinux: $selinux_state"
-  [[ "$selinux_state" == "Enforcing" ]] && pass "SELinux enforcing" || warn "SELinux не в Enforcing"
+  if [[ "$selinux_state" == "Enforcing" ]]; then
+    pass "SELinux enforcing"
+  else
+    warn "SELinux не в Enforcing"
+  fi
 else
   info "AppArmor/SELinux status tool не найден"
 fi
@@ -1111,7 +1723,7 @@ section "CRON / SYSTEMD TIMERS"
 echo "-- /etc/cron.d --"
 find /etc/cron.d -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | sort || true
 echo "-- User crontabs --"
-while IFS=: read -r user _ uid _ _ _ shell; do
+while IFS=: read -r user _ _ _ _ _ shell; do
   [[ "$shell" =~ (nologin|false)$ ]] && continue
   cron="$(crontab -u "$user" -l 2>/dev/null || true)"
   active_cron="$(printf '%s\n' "$cron" | grep -Ev '^[[:space:]]*(#|$)' || true)"
@@ -1191,6 +1803,116 @@ if (( INTERACTIVE == 1 )); then
   interactive_ban_menu
 else
   info "Управление блокировками не запускалось. Для меню: --interactive"
+fi
+
+if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+  exec 1>&3 2>&4
+  python3 - "$FINDINGS_FILE" "$MAIL_STATS_JSON" "$SCRIPT_VERSION" "$MAIL_HOST" "$MAIL_DOMAIN" \
+    "$MAIL_PLATFORM" "$PLATFORM_VERSION" "$AUDIT_FROM" "$AUDIT_TO" "$PASSES" "$INFOS" \
+    "$WARNINGS" "$CRITICALS" "$AUDIT_RC" "$REDACT" >"$TMPROOT/report.json" <<'PYREPORT'
+import json
+import os
+import re
+import subprocess
+import sys
+
+(
+    findings_path, mail_stats_path, version, host, domain, platform, platform_version,
+    audit_from, audit_to, passes, infos, warnings, criticals, exit_code, redact
+) = sys.argv[1:]
+
+redact = redact == "1"
+email_re = re.compile(r"[\w.%+-]+@[\w.-]+")
+ipv4_re = re.compile(r"(?:\d{1,3}\.){3}\d{1,3}")
+ipv6_re = re.compile(r"(?:(?:[0-9A-Fa-f]{0,4}):){2,7}[0-9A-Fa-f]{0,4}")
+
+
+def clean(value):
+    if not redact or not isinstance(value, str):
+        return value
+    value = email_re.sub("<redacted-email>", value)
+    value = ipv4_re.sub("<redacted-ip>", value)
+    return ipv6_re.sub("<redacted-ipv6>", value)
+
+
+findings = []
+remediation_by_section = {
+    "PATCH": "Install reviewed security updates and schedule a controlled reboot when required.",
+    "STACK": "Restore the affected mail service or container and inspect its logs before accepting traffic.",
+    "SSH": "Harden the effective sshd configuration and validate access in a second session before reloading.",
+    "NET": "Confirm the listener is required and restrict it with bind addresses and firewall policy.",
+    "FW": "Enable and verify a default-deny host firewall policy without interrupting active administration.",
+    "BRUTE": "Enable a tested brute-force protection policy and verify mail and SSH jails.",
+    "FLOW": "Verify log retention, Postfix Queue ID visibility, and the selected audit period.",
+    "MTA": "Review relay restrictions from an external untrusted host before changing production configuration.",
+    "TLS": "Renew or replace the certificate and enforce TLS 1.2 or newer.",
+    "DNS": "Correct the DNS record, wait for propagation, and repeat the external verification.",
+    "DISK": "Free or extend capacity and confirm mail queues and mailbox storage can continue growing safely.",
+    "QUEUE": "Inspect deferred reasons and remediate delivery failures before deleting or requeuing mail.",
+    "BACKUP": "Configure an off-host backup and perform a documented restore test.",
+}
+with open(findings_path, encoding="utf-8", errors="replace") as handle:
+    for line in handle:
+        parts = line.rstrip("\n").split("\t", 2)
+        if len(parts) == 3:
+            section = parts[0].split("-", 1)[0]
+            findings.append({
+                "id": parts[0], "severity": parts[1], "message": clean(parts[2]),
+                "remediation": remediation_by_section.get(section) if parts[1] in {"warning", "critical"} else None,
+            })
+
+mail_statistics = None
+if os.path.isfile(mail_stats_path):
+    with open(mail_stats_path, encoding="utf-8") as handle:
+        mail_statistics = json.load(handle)
+
+filesystems = []
+try:
+    output = subprocess.run(
+        ["df", "-P", "-B1", "-x", "tmpfs", "-x", "devtmpfs"],
+        check=False, capture_output=True, text=True, timeout=15,
+    ).stdout.splitlines()[1:]
+    for line in output:
+        parts = line.split(None, 5)
+        if len(parts) == 6 and parts[1].isdigit():
+            filesystems.append({
+                "filesystem": clean(parts[0]), "bytes_total": int(parts[1]),
+                "bytes_used": int(parts[2]), "bytes_available": int(parts[3]),
+                "used_percent": int(parts[4].rstrip("%")), "mountpoint": clean(parts[5]),
+            })
+except (OSError, subprocess.TimeoutExpired, ValueError):
+    pass
+
+status = "critical" if int(criticals) else "review_required" if int(warnings) else "clean"
+report = {
+    "schema_version": 1,
+    "tool": {"name": "mail-sec-audit", "version": version},
+    "generated_at": __import__("datetime").datetime.now().astimezone().isoformat(),
+    "target": {
+        "host": "<redacted-host>" if redact else host,
+        "domain": "<redacted-domain>" if redact and domain else domain or None,
+        "platform": platform,
+        "platform_version": platform_version or None,
+    },
+    "period": {"from": audit_from, "to": audit_to},
+    "result": {
+        "status": status, "exit_code": int(exit_code),
+        "counts": {"pass": int(passes), "info": int(infos), "warning": int(warnings), "critical": int(criticals)},
+    },
+    "findings": findings,
+    "mail_statistics": mail_statistics,
+    "filesystems": filesystems,
+}
+print(json.dumps(report, ensure_ascii=False, indent=2))
+PYREPORT
+
+  if [[ -n "$REPORT_FILE" && "$APPEND_REPORT" -eq 1 ]]; then
+    tee -a -- "$REPORT_FILE" <"$TMPROOT/report.json"
+  elif [[ -n "$REPORT_FILE" ]]; then
+    tee -- "$REPORT_FILE" <"$TMPROOT/report.json"
+  else
+    cat "$TMPROOT/report.json"
+  fi
 fi
 
 exit "$AUDIT_RC"
