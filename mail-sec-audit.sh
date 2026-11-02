@@ -18,7 +18,7 @@ umask 077
 export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 export LC_ALL=C
 
-SCRIPT_VERSION="2.3.1"
+SCRIPT_VERSION="2.3.2"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 DAYS=7
 MAIL_TOP=20
@@ -239,7 +239,11 @@ cleanup() {
     rm -rf -- "$TMPROOT"
   fi
 }
-trap cleanup EXIT HUP INT TERM
+trap cleanup EXIT
+# Stop on signals instead of continuing with a removed TMPROOT; EXIT runs cleanup.
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 prepare_report_target() {
   local target="$1" parent owner
@@ -506,7 +510,7 @@ collect_mail_logs() {
 
 filter_log_period() {
   local source="$1" target="$2"
-  python3 - "$SCRIPT_DIR/lib" "$source" "$target" "$AUDIT_FROM" "$AUDIT_TO" <<'PYFILTER'
+  python3 -I - "$SCRIPT_DIR/lib" "$source" "$target" "$AUDIT_FROM" "$AUDIT_TO" <<'PYFILTER'
 import datetime as dt
 import sys
 
@@ -527,7 +531,7 @@ PYFILTER
 extract_source_ips() {
   # Один Python-процесс обрабатывает весь поток. Не запускаем Python для каждого IP.
   if have python3; then
-    python3 -c '
+    python3 -I -c '
 import collections, ipaddress, re, sys
 counts = collections.Counter()
 ipv4 = re.compile(r"(?<![0-9A-Fa-f:])(?:\\d{1,3}\\.){3}\\d{1,3}(?![0-9A-Fa-f:])")
@@ -577,7 +581,7 @@ valid_ipv4_fallback() {
 valid_ip() {
   local ip="$1"
   if have python3; then
-    python3 - "$ip" <<'PYIP' >/dev/null 2>&1
+    python3 -I - "$ip" <<'PYIP' >/dev/null 2>&1
 import ipaddress, sys
 ipaddress.ip_address(sys.argv[1])
 PYIP
@@ -592,7 +596,7 @@ unsafe_to_ban() {
   [[ -n "$current" && "$ip" == "$current" ]] && return 0
   for own in $(hostname -I 2>/dev/null || true); do [[ "$ip" == "$own" ]] && return 0; done
   if have python3; then
-    python3 - "$ip" <<'PYIP' >/dev/null 2>&1
+    python3 -I - "$ip" <<'PYIP' >/dev/null 2>&1
 import ipaddress, sys
 x=ipaddress.ip_address(sys.argv[1])
 raise SystemExit(0 if not x.is_global else 1)
@@ -848,7 +852,7 @@ load_mail_stats_summary() {
       observed_from) MAIL_OBSERVED_FROM="$value" ;;
       observed_to) MAIL_OBSERVED_TO="$value" ;;
     esac
-  done < <(python3 - "$MAIL_STATS_JSON" <<'PYSUMMARY'
+  done < <(python3 -I - "$MAIL_STATS_JSON" <<'PYSUMMARY'
 import json, sys
 data = json.load(open(sys.argv[1], encoding="utf-8"))
 totals = data.get("totals", {})
@@ -923,7 +927,8 @@ if have apt-get; then
   fi
 elif have dnf; then
   dnf_output="$TMPROOT/dnf-check.txt"
-  timeout 120 dnf -C -q check-update >"$dnf_output" 2>/dev/null || rc=$?
+  mkdir -p -- "$TMPROOT/dnf-logs"
+  timeout 120 dnf -C -q --setopt=logdir="$TMPROOT/dnf-logs" check-update >"$dnf_output" 2>/dev/null || rc=$?
   rc="${rc:-0}"
   updates="$(awk 'NF>=3 && $1 !~ /^(Last|Obsoleting|Security:|$)/ {c++} END{print c+0}' "$dnf_output")"
   echo "Pending packages: $updates"
@@ -1260,7 +1265,7 @@ fi
 
 info "Анализирую SSH-события одним проходом..."
 if have python3; then
-  python3 - "$ssh_log" "$TMPROOT/ssh-top-ips.txt" "$TMPROOT/ssh-accepted-ips.txt" >"$TMPROOT/ssh-summary.txt" <<'PYSSH'
+  python3 -I - "$ssh_log" "$TMPROOT/ssh-top-ips.txt" "$TMPROOT/ssh-accepted-ips.txt" >"$TMPROOT/ssh-summary.txt" <<'PYSSH'
 import collections
 import ipaddress
 import re
@@ -1377,7 +1382,7 @@ if [[ "$MTA" == "postfix" && -s "$mail_log" && -r "$SCRIPT_DIR/lib/mail_stats.py
     --output-dir "$TMPROOT/mail-stats"
   )
   (( REDACT == 1 )) && mail_stats_args+=( --redact )
-  if python3 "${mail_stats_args[@]}"; then
+  if python3 -I "${mail_stats_args[@]}"; then
     load_mail_stats_summary
     kv "Requested period" "$AUDIT_FROM -> $AUDIT_TO"
     kv "Observed log period" "${MAIL_OBSERVED_FROM:--} -> ${MAIL_OBSERVED_TO:--}"
@@ -1454,8 +1459,17 @@ case "$MTA" in
     info "OpenSMTPD: проверь match/action relay rules; обязательна внешняя open-relay проверка"
     ;;
   sendmail)
-    sendmail -d0.1 -bv root 2>/dev/null | sed -n '1,80p' || true
-    info "Sendmail: локальная конфигурация сложна для надёжной эвристики; обязательна внешняя open-relay проверка"
+    if [[ -r /etc/mail/sendmail.mc ]]; then
+      sendmail_relay_features="$(grep -E '^[[:space:]]*FEATURE\([`'\'']?(promiscuous_relay|relay_entire_domain|relay_based_on_MX|loose_relay_check|relay_local_from)' /etc/mail/sendmail.mc || true)"
+      [[ -n "$sendmail_relay_features" ]] && printf '%s\n' "$sendmail_relay_features"
+      if grep -q 'promiscuous_relay' <<<"$sendmail_relay_features"; then
+        critical "Sendmail: FEATURE(promiscuous_relay) включён в /etc/mail/sendmail.mc"
+      else
+        info "Sendmail: relay-конфигурация прочитана из sendmail.mc; обязательна внешняя open-relay проверка"
+      fi
+    else
+      info "Sendmail: /etc/mail/sendmail.mc недоступен; обязательна внешняя open-relay проверка"
+    fi
     ;;
 esac
 info "Локальный скрипт не может надёжно доказать отсутствие open relay: тест нужен с внешнего недоверенного IP"
@@ -1793,7 +1807,7 @@ if (( DEEP == 1 )); then
     debsums -s 2>/dev/null || true
     info "debsums завершён; любой вывод требует ручной проверки"
   elif have rpm; then
-    rpm -Va 2>/dev/null | sed -n '1,300p' || true
+    rpm -Va --noscripts 2>/dev/null | sed -n '1,300p' || true
     info "rpm -Va завершён; конфигурационные изменения могут быть легитимны"
   else
     info "debsums/rpm integrity checker недоступен"
@@ -1825,7 +1839,7 @@ fi
 
 if [[ "$OUTPUT_FORMAT" == "json" ]]; then
   exec 1>&3 2>&4
-  python3 - "$FINDINGS_FILE" "$MAIL_STATS_JSON" "$SCRIPT_VERSION" "$MAIL_HOST" "$MAIL_DOMAIN" \
+  python3 -I - "$FINDINGS_FILE" "$MAIL_STATS_JSON" "$SCRIPT_VERSION" "$MAIL_HOST" "$MAIL_DOMAIN" \
     "$MAIL_PLATFORM" "$PLATFORM_VERSION" "$AUDIT_FROM" "$AUDIT_TO" "$PASSES" "$INFOS" \
     "$WARNINGS" "$CRITICALS" "$AUDIT_RC" "$REDACT" >"$TMPROOT/report.json" <<'PYREPORT'
 import json

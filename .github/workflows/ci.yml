@@ -45,6 +45,9 @@ jobs:
       - name: Forbidden commands
         run: bash tests/forbidden_commands.sh
 
+      - name: Legacy hardening
+        run: bash tests/legacy_hardening.sh
+
       - name: Full JSON audit
         run: bash tests/full_json.sh
 
