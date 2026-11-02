@@ -27,6 +27,9 @@ temp/
 *.bak
 *.orig
 
+# Build output
+dist/
+
 # Test and coverage artifacts
 coverage/
 .coverage
