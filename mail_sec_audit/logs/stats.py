@@ -163,7 +163,7 @@ class MailStats:
         message = self.messages.pop(qid, None)
         if message is None:
             return
-        if message.user and not message.hop or message.user and message.outbound:
+        if (message.user and not message.hop) or (message.user and message.outbound):
             self.totals["authenticated_submissions"] += 1
             self._row(self.users, message.user).submitted += 1
             self._row(self.users, message.user).touch(message)

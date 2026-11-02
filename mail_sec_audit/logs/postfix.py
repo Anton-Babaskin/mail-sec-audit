@@ -111,7 +111,9 @@ def parse_delivery(body: str) -> Optional[Delivery]:
     match = DELIVERY_TAIL.match(rest)
     if not match:
         return None
-    return Delivery(recipient, match.group("relay"), match.group("status"), match.group("dsn"), match.group("text") or "")
+    return Delivery(
+        recipient, match.group("relay"), match.group("status"), match.group("dsn"), match.group("text") or ""
+    )
 
 
 @dataclass(frozen=True)

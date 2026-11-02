@@ -24,7 +24,9 @@ ISO_RE = re.compile(
     r"(?P<tz>Z|[+-]\d{2}:?\d{2})?\s+"
 )
 SYSLOG_RE = re.compile(r"(?P<mon>[A-Z][a-z]{2}) {1,2}(?P<day>\d{1,2}) (?P<time>\d{2}:\d{2}:\d{2})\s+")
-MONTHS = {m: i for i, m in enumerate(("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1)}
+MONTHS = {
+    m: i for i, m in enumerate(("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1)
+}
 
 
 def _iso(match: re.Match[str], default_tz: dt.tzinfo) -> Optional[dt.datetime]:

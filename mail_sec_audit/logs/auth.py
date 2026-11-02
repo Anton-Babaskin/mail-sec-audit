@@ -21,7 +21,9 @@ from typing import Optional
 from .lines import DOVECOT_LOGIN, Header
 from .postfix import sasl_failure_ip
 
-SSH_FAILED = re.compile(r"^Failed (?:password|publickey|keyboard-interactive/pam|none) for (?:invalid user )?\S* ?from (\S+)")
+SSH_FAILED = re.compile(
+    r"^Failed (?:password|publickey|keyboard-interactive/pam|none) for (?:invalid user )?\S* ?from (\S+)"
+)
 SSH_INVALID = re.compile(r"^Invalid user .* from (\S+)")
 SSH_ACCEPTED = re.compile(r"^Accepted (?:password|publickey|keyboard-interactive/pam) for \S+ from (\S+)")
 DOVECOT_FAILED = re.compile(r"\(auth failed, (\d+) attempts?[^)]*\)")

@@ -13,6 +13,7 @@ from typing import Optional, Union
 
 from mail_sec_audit import cli
 from mail_sec_audit.app import build_report
+from mail_sec_audit.facts.tls import Handshake, Prober, Target
 from mail_sec_audit.host import Host
 from mail_sec_audit.i18n import Translator
 from mail_sec_audit.model import Finding, Report, Status
@@ -89,6 +90,16 @@ class FakeRunner:
         return any(call[: len(prefix)] == prefix for call in self.calls)
 
 
+class NoNetwork:
+    """Default prober in tests: no socket is ever opened."""
+
+    def handshake(self, target: Target, server_name: str) -> Handshake:
+        return Handshake(target, False, error="no network in tests")
+
+    def legacy(self, target: Target, version: str) -> str:
+        return "error:no network in tests"
+
+
 def write_tree(root: str, files: Mapping[str, Union[str, bytes]]) -> None:
     for path, content in files.items():
         real = os.path.join(root, path.lstrip("/"))
@@ -132,6 +143,7 @@ def run_scenario(
     env: Optional[Mapping[str, str]] = None,
     modes: Optional[Mapping[str, int]] = None,
     mtimes: Optional[Mapping[str, float]] = None,
+    prober: Optional[Prober] = None,
 ) -> Scenario:
     with tempfile.TemporaryDirectory(prefix="msa-fixture.") as root:
         write_tree(root, files or {})
@@ -143,7 +155,9 @@ def run_scenario(
         runner = FakeRunner(responses)
         tmpdir = os.path.join(root, "tmp", "mail-sec-audit.test")
         os.makedirs(tmpdir, exist_ok=True)
-        report, durations = build_report(config(*args), host, runner, Translator("en", strict=True), tmpdir)
+        report, durations = build_report(
+            config(*args), host, runner, Translator("en", strict=True), tmpdir, prober or NoNetwork()
+        )
         # Render every message in both languages strictly: a missing key or
         # placeholder fails the test.
         for lang in ("en", "ru"):
