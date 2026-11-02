@@ -42,6 +42,9 @@ jobs:
       - name: Smoke tests
         run: bash tests/smoke.sh
 
+      - name: Forbidden commands
+        run: bash tests/forbidden_commands.sh
+
       - name: Full JSON audit
         run: bash tests/full_json.sh
 

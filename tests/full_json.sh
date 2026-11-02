@@ -10,6 +10,8 @@ cleanup() {
 }
 trap cleanup EXIT
 report_file="$test_root/audit.json"
+version_line="$(bash "$repo_root/mail-sec-audit.sh" --version)"
+expected_version="${version_line##* }"
 
 set +e
 json_output="$(timeout 180 bash "$repo_root/mail-sec-audit.sh" --days 1 --format json --redact --no-color --report "$report_file")"
@@ -34,9 +36,9 @@ data = json.load(sys.stdin)
 saved = json.load(open(sys.argv[1], encoding="utf-8"))
 assert data == saved, "stdout and saved report differ"
 assert data["schema_version"] == 1, data
-assert data["tool"]["version"] == "2.3.0", data["tool"]
+assert data["tool"]["version"] == sys.argv[2], data["tool"]
 assert isinstance(data["findings"], list), data
 assert isinstance(data["filesystems"], list), data
 assert data["result"]["exit_code"] in (0, 1, 2), data["result"]
 print(f"Full JSON check passed ({len(data['"'"'findings'"'"'])} findings).")
-' "$report_file" <<<"$json_output"
+' "$report_file" "$expected_version" <<<"$json_output"
