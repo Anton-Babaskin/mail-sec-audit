@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Union
 
 from ..host import FileRead
 from ..model import Reason
 from ..render.sanitize import clean
-from ..runner import CommandResult, ExecState, failure_reason
+from ..runner import CommandResult, ExecState, Runner, failure_reason
 
 
 @dataclass(frozen=True)
@@ -36,3 +37,16 @@ def from_file(read: FileRead) -> Unavailable:
         "truncated": Reason.TRUNCATED,
     }.get(read.state, Reason.COMMAND_FAILED)
     return Unavailable(reason, f"file:{read.path}", read.detail)
+
+
+@dataclass(frozen=True)
+class Output:
+    lines: tuple[str, ...]
+    source: str
+
+
+def command_lines(runner: Runner, argv: list[str]) -> Union[Output, Unavailable]:
+    result = runner.run(argv)
+    if result.state not in (ExecState.OK, ExecState.NONZERO) or (not result.ok and not result.stdout.strip()):
+        return from_result(result)
+    return Output(tuple(line for line in result.stdout.splitlines() if line.strip()), f"cmd:{result.display}")

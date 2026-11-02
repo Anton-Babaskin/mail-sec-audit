@@ -52,7 +52,11 @@ class FakeRunner:
         self.inputs: list[Optional[str]] = []
 
     def which(self, program: str) -> Optional[str]:
-        return None if self._lookup((program,)) is MISSING else f"/usr/bin/{program}"
+        """A program exists when any response for it is not MISSING."""
+        for key, spec in self.responses.items():
+            if key[0] == program and spec is not MISSING:
+                return f"/usr/bin/{program}"
+        return None
 
     def _lookup(self, argv: tuple[str, ...]) -> Resp:
         if argv in self.responses:
@@ -126,9 +130,15 @@ def run_scenario(
     euid: int = 0,
     denied: frozenset[str] = frozenset(),
     env: Optional[Mapping[str, str]] = None,
+    modes: Optional[Mapping[str, int]] = None,
+    mtimes: Optional[Mapping[str, float]] = None,
 ) -> Scenario:
     with tempfile.TemporaryDirectory(prefix="msa-fixture.") as root:
         write_tree(root, files or {})
+        for path, mode in (modes or {}).items():
+            os.chmod(os.path.join(root, path.lstrip("/")), mode)
+        for path, mtime in (mtimes or {}).items():
+            os.utime(os.path.join(root, path.lstrip("/")), (mtime, mtime))
         host = Host(root, denied=denied, now=NOW, euid=euid, env=env or {})
         runner = FakeRunner(responses)
         tmpdir = os.path.join(root, "tmp", "mail-sec-audit.test")

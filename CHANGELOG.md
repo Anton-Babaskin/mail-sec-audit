@@ -13,6 +13,9 @@ versioning where practical.
   timeouts and output limits, OK/INFO/WARN/FAIL/UNKNOWN/N/A model with stable IDs, evidence and
   completeness, ru/en catalogs, terminal, JSON v1 and FleetOps renderers, private report files,
   single-instance lock, signal handling and a zipapp build. Not yet the entry point.
+- Host checks in the new core: updates, reboot, effective sshd settings, listeners, firewall, brute-force
+  protection, accounts, authorized_keys, disk and inodes, SUID, world-writable paths, failed units,
+  AppArmor/SELinux, scheduled jobs, backups, logins and the --deep scans, each with UNKNOWN/N/A handling.
 
 ## [2.3.2] - 2026-11-02
 

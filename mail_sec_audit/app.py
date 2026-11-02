@@ -18,7 +18,7 @@ from . import __version__, cli
 from .facts import Facts
 from .host import Host
 from .i18n import Translator, select_language
-from .model import Completeness, Report
+from .model import Completeness, Finding, Report, Status
 from .render import fleetops, json_v1
 from .render.redact import NO_REDACTION, Redactor
 from .render.terminal import TextRenderer
@@ -64,6 +64,24 @@ def local_users(host: Host) -> list[str]:
     return users
 
 
+REASON_STATE = {
+    "permission_denied": "denied",
+    "missing_tool": "missing",
+    "timeout": "timeout",
+    "truncated": "truncated",
+    "no_data": "empty",
+}
+
+
+def record_gaps(findings: Sequence[Finding], completeness: Completeness) -> None:
+    """List every source behind an UNKNOWN finding in the completeness summary."""
+    for finding in findings:
+        if finding.status is Status.UNKNOWN and finding.source:
+            detail = str(finding.params.get("detail", ""))
+            state = REASON_STATE.get(finding.reason or "", "error")
+            completeness.add_source(finding.source, state, "" if detail == "-" else detail)
+
+
 def build_report(
     config: cli.Config,
     host: Host,
@@ -80,6 +98,7 @@ def build_report(
     stack = facts.stack()
     ctx.stack = stack
     findings = run_checks(ctx)
+    record_gaps(findings, completeness)
     identity = facts.identity()
     mail_host = config.mail_host or identity.fqdn
     platform = f"{stack.name} ({stack.version})" if stack.version else stack.name

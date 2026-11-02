@@ -58,7 +58,7 @@ class StaticTest(unittest.TestCase):
 
         ids = [module.CHECK.id for module in REGISTRY]
         self.assertEqual(len(ids), len(set(ids)), "duplicate check id")
-        files = {p.stem for p in (PACKAGE / "rules").glob("*.py")} - {"__init__", "base"}
+        files = {p.stem for p in (PACKAGE / "rules").glob("*.py") if not p.stem.startswith("_")} - {"__init__", "base"}
         registered = {module.__name__.rsplit(".", 1)[-1] for module in REGISTRY}  # type: ignore[attr-defined]
         self.assertEqual(files - registered, set(), "rule module not registered")
         for module in REGISTRY:
