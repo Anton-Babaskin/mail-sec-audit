@@ -51,7 +51,9 @@ with open(path, encoding="utf-8") as handle:
             if match.group("pre") == "|" and line[match.end():match.end() + 1] == ")":
                 continue
             problems.append(f"{number}: executes {match.group('cmd')}: {raw.strip()}")
-        if "/usr/local/bin/mailinabox" in line and not re.search(r"\bsed -n\b|wrapper=", line):
+        if "/usr/local/bin/mailinabox" in line and not re.search(
+            r"\bsed -n\b|\bmiab_setup_dir /usr/local/bin/mailinabox\)", line
+        ):
             problems.append(f"{number}: touches /usr/local/bin/mailinabox outside the sed reader: {raw.strip()}")
 if problems:
     print("Forbidden command usage found:", *problems, sep="\n  ", file=sys.stderr)
