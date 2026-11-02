@@ -467,7 +467,7 @@ detect_mail_platform() {
 # ignores its arguments: running it in any form starts the Mail-in-a-Box setup.
 # Read the setup checkout path from the wrapper and ask git for the version.
 miab_setup_dir() {
-  local wrapper="${1:-/usr/local/bin/mailinabox}" dir
+  local wrapper="$1" dir
   dir="$(sed -n 's/^cd //p' "$wrapper" 2>/dev/null | head -1)"
   [[ "$dir" == /* && "$dir" != *[[:space:]]* && -e "$dir/.git" ]] || return 1
   printf '%s\n' "$dir"
@@ -476,7 +476,7 @@ miab_setup_dir() {
 miab_version() {
   local dir
   have git || return 0
-  dir="$(miab_setup_dir)" || return 0
+  dir="$(miab_setup_dir /usr/local/bin/mailinabox)" || return 0
   timeout 8 git -c core.fsmonitor=false --no-pager --no-optional-locks -C "$dir" \
     describe --always --abbrev=0 2>/dev/null | head -1 | tr -cd '[:alnum:]._-'
 }
