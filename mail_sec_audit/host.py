@@ -12,6 +12,7 @@ import errno
 import glob
 import gzip
 import os
+import socket
 import stat as stat_mod
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
@@ -39,12 +40,26 @@ class Host:
         now: Optional[dt.datetime] = None,
         euid: Optional[int] = None,
         env: Optional[Mapping[str, str]] = None,
+        hostname: Optional[str] = None,
+        uname: Optional[tuple[str, str, str]] = None,
     ) -> None:
         self.root = os.path.abspath(root)
         self.denied = denied
         self._now = now
         self.euid = os.geteuid() if euid is None else euid
         self.env = dict(os.environ if env is None else env)
+        self._hostname = hostname
+        self._uname = uname
+
+    def hostname(self) -> str:
+        return self._hostname if self._hostname is not None else socket.gethostname()
+
+    def uname(self) -> tuple[str, str, str]:
+        """(system, release, machine)."""
+        if self._uname is not None:
+            return self._uname
+        info = os.uname()
+        return info.sysname, info.release, info.machine
 
     def now(self) -> dt.datetime:
         return self._now if self._now is not None else dt.datetime.now().astimezone()

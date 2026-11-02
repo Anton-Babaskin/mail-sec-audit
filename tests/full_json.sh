@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Runs the real audit on the CI host (read-only, not a mail server) and
+# checks the JSON documents against the FleetOps HealthResult field names
+# (--format json) and the 2.3 layout (--format json-v1).
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -9,36 +12,44 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
-report_file="$test_root/audit.json"
 version_line="$(bash "$repo_root/mail-sec-audit.sh" --version)"
 expected_version="${version_line##* }"
 
-set +e
-json_output="$(timeout 180 bash "$repo_root/mail-sec-audit.sh" --days 1 --format json --redact --no-color --report "$report_file")"
-audit_status=$?
-set -e
-
-case "$audit_status" in
-  0|1|2) ;;
-  *)
-    printf 'Full JSON audit exited unexpectedly with %d\n' "$audit_status" >&2
-    exit "$audit_status"
-    ;;
-esac
-
-[[ "$(stat -c %a "$report_file")" == "600" ]] || { echo "JSON report mode is not 0600" >&2; exit 1; }
-
-python3 -c '
-import json
-import sys
-
+for format in json json-v1; do
+  report_file="$test_root/audit-$format.json"
+  set +e
+  output="$(timeout 300 bash "$repo_root/mail-sec-audit.sh" --days 1 --format "$format" --redact --no-color --report "$report_file")"
+  status=$?
+  set -e
+  case "$status" in
+    0|1|2) ;;
+    *) printf 'Audit (--format %s) exited unexpectedly with %d\n' "$format" "$status" >&2; exit "$status" ;;
+  esac
+  [[ "$(stat -c %a "$report_file")" == "600" ]] || { echo "report mode is not 0600" >&2; exit 1; }
+  python3 -I -c '
+import json, sys
 data = json.load(sys.stdin)
 saved = json.load(open(sys.argv[1], encoding="utf-8"))
 assert data == saved, "stdout and saved report differ"
-assert data["schema_version"] == 1, data
-assert data["tool"]["version"] == sys.argv[2], data["tool"]
-assert isinstance(data["findings"], list), data
-assert isinstance(data["filesystems"], list), data
-assert data["result"]["exit_code"] in (0, 1, 2), data["result"]
-print(f"Full JSON check passed ({len(data['"'"'findings'"'"'])} findings).")
-' "$report_file" "$expected_version" <<<"$json_output"
+fmt, version, status = sys.argv[2], sys.argv[3], int(sys.argv[4])
+if fmt == "json":
+    assert set(data) == {"schema_version", "host", "collected_at", "duration_ms", "overall_status", "checks"}, set(data)
+    assert data["schema_version"] == "1.0"
+    assert data["host"]["hostname"] == "<redacted-host>"
+    assert data["overall_status"] in ("ok", "warning", "critical", "unknown")
+    fields = {"name", "status", "summary", "metrics", "reason", "error", "timed_out", "duration_ms", "raw_ref"}
+    for check in data["checks"]:
+        assert set(check) == fields, check
+        assert check["summary"] and check["duration_ms"] >= 0
+    audit = next(c for c in data["checks"] if c["name"] == "CTX.AUDIT")
+    assert audit["metrics"]["version"] == version
+    count, overall = len(data["checks"]), data["overall_status"]
+    print(f"--format json: {count} checks, overall {overall}")
+else:
+    assert data["schema_version"] == 1 and data["tool"]["version"] == version
+    assert data["result"]["exit_code"] == status
+    assert isinstance(data["findings"], list) and isinstance(data["filesystems"], list)
+    count = len(data["findings"])
+    print(f"--format json-v1: {count} findings, exit {status}")
+' "$report_file" "$format" "$expected_version" "$status" <<<"$output"
+done

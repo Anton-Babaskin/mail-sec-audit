@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import socket
 from dataclasses import dataclass
@@ -32,7 +31,7 @@ def _os_name(host: Host) -> str:
 
 
 def collect(host: Host, runner: Runner) -> Identity:
-    short = socket.gethostname()
+    short = host.hostname()
     result = runner.run(["hostname", "-f"])
     lines = result.stdout.split() if result.ok else []
     fqdn: Optional[str] = lines[0] if lines else None
@@ -40,16 +39,16 @@ def collect(host: Host, runner: Runner) -> Identity:
     if not fqdn:
         fqdn = socket.getfqdn() or short
         source = "socket.getfqdn"
-    machine = host.read_text("/etc/machine-id", 256)
-    seed = machine.text.strip() if machine.ok and machine.text.strip() else fqdn
+    machine_id = host.read_text("/etc/machine-id", 256)
+    seed = machine_id.text.strip() if machine_id.ok and machine_id.text.strip() else fqdn
     # machine-id must not be published; derive an application-specific id.
     host_id = hashlib.sha256(f"mail-sec-audit:{seed}".encode()).hexdigest()[:16]
-    uname = os.uname()
+    system, release, machine = host.uname()
     return Identity(
         hostname=short,
         fqdn=fqdn,
         fqdn_source=source,
         os_name=_os_name(host),
-        kernel=f"{uname.sysname} {uname.release} {uname.machine}",
+        kernel=f"{system} {release} {machine}",
         host_id=host_id,
     )

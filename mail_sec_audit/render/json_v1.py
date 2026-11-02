@@ -1,4 +1,4 @@
-"""``--format json``: schema_version 1, kept compatible with 2.3.
+"""``--format json-v1``: the 2.3 document (schema_version 1) for existing consumers.
 
 All 2.3 fields keep their names and value sets. New fields are additive:
 ``findings[].status/section/subject/source/evidence/next_step/reason`` and

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 PLATFORMS = ("auto", "generic", "mailcow", "iredmail", "mailinabox")
-FORMATS = ("text", "json", "fleetops")
+FORMATS = ("text", "json", "json-v1")
 DNS_RE = re.compile(r"[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?")
 DATE_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 EX_USAGE = 64
@@ -45,7 +45,7 @@ class Config:
 
     @property
     def json_output(self) -> bool:
-        return self.output_format in ("json", "fleetops")
+        return self.output_format in ("json", "json-v1")
 
 
 @dataclass(frozen=True)
@@ -214,7 +214,7 @@ def parse(args: Sequence[str], env: Mapping[str, str], now: dt.datetime) -> Conf
         index += 2
 
     allowed_ports = parse_ports(env.get("MAIL_AUDIT_ALLOWED_PORTS", ""))
-    json_output = options["output_format"] in ("json", "fleetops")
+    json_output = options["output_format"] in ("json", "json-v1")
     if json_output and options["append_report"]:
         raise UsageError("cli.error.json_append")
     if json_output and options["interactive"]:
