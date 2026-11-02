@@ -55,7 +55,7 @@
 
 | Строки 2.3 | Было | Новый ID | Изменение |
 |---|---|---|---|
-| 1121–1142 | WARN неизвестный listener | `NET.UNEXPECTED_LISTENER@<proto>/<addr>:<port>` | клиентские UDP-сокеты (68, 546) не считаются (R-09); ожидаемые порты стека из `stacks/` (MIAB 12340) |
+| 1121–1142 | WARN неизвестный listener | `NET.LISTENERS@<proto>/<addr>:<port>` | клиентские UDP-сокеты (68, 546) не считаются (R-09); ожидаемые порты стека из `stacks/` (MIAB 12340) |
 | 1143 | OK | `NET.LISTENERS` | |
 | 1144–1146 | WARN нет `ss` | `NET.LISTENERS` | UNKNOWN |
 | 1148–1183 | OK UFW/firewalld/nft/iptables, FAIL нет firewall | `FW.HOST_FIREWALL` | цепочки Docker не считаются (R-06); ошибка чтения или не root → UNKNOWN (R-05); `iptables` только при загруженном `ip_tables` (R-24) |
@@ -122,8 +122,8 @@
 | 1575–1576 | печать интерактивных аккаунтов | `USERS.INTERACTIVE_ACCOUNTS` | INFO |
 | 1578–1585 | FAIL/OK пустой хеш (чтение `/etc/shadow`) | `USERS.EMPTY_PASSWORD` | `passwd -S`, хеши не читаются (R-41) |
 | 1587–1588 | печать NOPASSWD | `USERS.SUDO_NOPASSWD` | INFO |
-| 1590–1603 | права authorized_keys OK/WARN, INFO нет файлов | `KEYS.AUTHORIZED_KEYS_PERMS@<path>`, `KEYS.AUTHORIZED_KEYS` | WARN только при записи для группы/других или чужом владельце (R-40); пути из `AuthorizedKeysFile` |
-| 1605–1611, 704–718 | FAIL ≥95 / WARN ≥85 / OK, диск и inode | `DISK.USAGE@<mount>`, `DISK.INODES@<mount>` | overlay и squashfs исключены |
+| 1590–1603 | права authorized_keys OK/WARN, INFO нет файлов | `KEYS.AUTHORIZED_KEYS@<path>` (WARN), `KEYS.AUTHORIZED_KEYS` (INFO) | WARN только при записи для группы/других или чужом владельце (R-40); пути из `AuthorizedKeysFile` |
+| 1605–1611, 704–718 | FAIL ≥95 / WARN ≥85 / OK, диск и inode | `DISK.USAGE@<mount>`, `DISK.INODES@<mount>` (FAIL/WARN), `DISK.USAGE`, `DISK.INODES` (OK) | overlay и squashfs исключены |
 | 1613–1623 | путь хранилища почты, INFO | `DISK.MAIL_STORAGE` | путь задаёт стек |
 | 1625–1648 | Postfix очередь FAIL/WARN/OK/WARN | `QUEUE.SIZE` | `postqueue -j` (длинные ID, R-08); недоступно → UNKNOWN |
 | 1650–1663 | Exim очередь | `QUEUE.SIZE` | нечисловой вывод → UNKNOWN (R-42) |
