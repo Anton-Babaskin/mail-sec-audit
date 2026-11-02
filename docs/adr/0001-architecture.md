@@ -75,7 +75,7 @@
 
 Добавлены:
 - `--lang ru|en`; без флага язык берётся из `LC_ALL`, `LC_MESSAGES`, `LANG`;
-- `--format fleetops`, см. раздел JSON.
+- `--format json-v1` (документ 2.3), см. раздел JSON.
 
 `sudo bash mail-sec-audit.sh` остаётся основным способом запуска. Скрипт превращается в
 обёртку, которая проверяет Python ≥ 3.9 и запускает пакет в изолированном режиме (`-I`).
@@ -105,21 +105,18 @@ FleetOps (`fleetops/domain/models.py`) объявляет `HealthResult` и `Che
 поля v1 (`tool`, `target`, `findings`, `mail_statistics`, …), валидацию FleetOps не пройдёт.
 Документ в формате HealthResult ломает совместимость с текущими потребителями `--format json`.
 
-Принято так:
-- `--format json` остаётся `schema_version: 1`. Все прежние поля сохраняются с прежними
-  значениями `severity` и `result.status`. Новые поля только добавляются: `status`, `section`,
-  `source`, `evidence`, `next_step`, `reason` у findings, `completeness` и `duration_ms` у отчёта.
-  UNKNOWN отображается в `severity: warning`, N/A в `severity: info`, точный статус лежит в `status`;
-- `--format fleetops` выдаёт HealthResult: `schema_version "1.0"`, `host{id,hostname}`,
+Решение владельца (2 ноября 2026, при выпуске 3.0.0):
+- `--format json` выдаёт HealthResult: `schema_version "1.0"`, `host{id,hostname}`,
   `collected_at`, `duration_ms`, `overall_status`, `checks[]`. Каждый finding становится
-  CheckResult, детали лежат в `metrics`. Совместимость проверяется контрактным тестом
-  по полям FleetOps;
-- значения `findings[].id` меняются с позиционных `SSH-004` на стабильные `SSH.X11_FORWARDING`.
-  Старые ID не были стабильными (R-07), поэтому это исправление дефекта. Оно отмечено в CHANGELOG.
-
-**Открытый вопрос владельцу:** сделать ли HealthResult форматом по умолчанию для
-`--format json` в следующем мажорном выпуске. Это ломает контракт v1, поэтому не делается
-без решения.
+  CheckResult, детали (исходный статус, секция, источник, доказательство, шаг) лежат в
+  `metrics`; версия, период и пробы — в проверке `CTX.AUDIT`, статистика Postfix — в
+  `FLOW.STATISTICS`, файловые системы — в `DISK.FILESYSTEMS`. Совместимость проверяется
+  контрактными тестами по полям FleetOps;
+- `--format json-v1` сохраняет документ 2.3 (`schema_version: 1`) с прежними полями и
+  значениями `severity`/`result.status`, новые поля только добавлены. UNKNOWN отображается
+  в `severity: warning`, N/A в `severity: info`, точный статус в `status`;
+- значения `findings[].id` — стабильные имена (`SSH.X11_FORWARDING`) вместо позиционных
+  `SSH-004`, которые не были стабильными (R-07).
 
 ### Статусы
 
@@ -166,7 +163,7 @@ mail_sec_audit/
   logs/        источники, время, парсеры Postfix/Dovecot/sshd, статистика
   rules/       одна проверка на модуль
   stacks/      mailinabox, mailcow, iredmail, generic
-  render/      terminal, json (v1), fleetops, redact, sanitize
+  render/      terminal, fleetops (--format json), json_v1 (--format json-v1), redact, sanitize
   i18n/        каталоги ru и en
 ```
 

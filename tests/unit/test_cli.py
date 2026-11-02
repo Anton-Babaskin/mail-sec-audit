@@ -58,7 +58,7 @@ class CliTest(unittest.TestCase):
             ("--format", "yaml"),
             ("--lang", "de"),
             ("--format", "json", "--append-report", "/tmp/unused-mail-audit.json"),
-            ("--format", "fleetops", "--interactive"),
+            ("--format", "json-v1", "--interactive"),
             ("--format", "json", "--interactive"),
             ("--report", "/tmp/one", "--report", "/tmp/two"),
             ("--report", "/tmp/one", "--append-report", "/tmp/two"),

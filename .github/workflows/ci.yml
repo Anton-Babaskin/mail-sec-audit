@@ -34,21 +34,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
       - name: Bash syntax
-        run: bash -n mail-sec-audit.sh
+        run: bash -n mail-sec-audit.sh tests/*.sh
 
-      - name: Python syntax
-        run: python3 -m py_compile lib/mail_stats.py
-
-      - name: Smoke tests
+      - name: Smoke tests (CLI contract through the wrapper)
         run: bash tests/smoke.sh
 
-      - name: Forbidden commands
-        run: bash tests/forbidden_commands.sh
+      - name: Wrapper checks
+        run: bash tests/wrapper.sh
 
-      - name: Legacy hardening
-        run: bash tests/legacy_hardening.sh
-
-      - name: Full JSON audit
+      - name: Full audit on the runner (json and json-v1)
         run: bash tests/full_json.sh
 
       - name: ShellCheck
@@ -79,6 +73,15 @@ jobs:
 
       - name: Build zipapp
         run: python tools/build_zipapp.py dist/mail-sec-audit.pyz && python -I dist/mail-sec-audit.pyz --version
+
+      - name: Run the zipapp audit
+        run: |
+          set +e
+          python -I dist/mail-sec-audit.pyz --days 1 --format json > /tmp/report.json
+          status=$?
+          set -e
+          test "$status" -le 2
+          python -c 'import json; d = json.load(open("/tmp/report.json")); assert d["schema_version"] == "1.0"'
 
   lint:
     name: ruff and mypy --strict
@@ -119,7 +122,7 @@ jobs:
       - name: Install system Python only
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 ca-certificates
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 ca-certificates openssl
           if command -v gawk; then echo "gawk must not be installed" >&2; exit 1; fi
           python3 --version
 
@@ -130,3 +133,6 @@ jobs:
 
       - name: Unit and scenario tests with the system Python
         run: python3 -m unittest discover -s tests -t .
+
+      - name: Smoke tests through the wrapper without gawk
+        run: bash tests/smoke.sh

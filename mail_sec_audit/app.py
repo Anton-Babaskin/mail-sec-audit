@@ -154,10 +154,10 @@ def render(
 ) -> tuple[str, str]:
     """Return (stdout text, report-file text)."""
     if config.output_format == "json":
-        text = json_v1.render(report, t, redactor, redacted=config.redact)
-        return text, text
-    if config.output_format == "fleetops":
         text = fleetops.render(report, t, redactor, redacted=config.redact, durations=durations)
+        return text, text
+    if config.output_format == "json-v1":
+        text = json_v1.render(report, t, redactor, redacted=config.redact)
         return text, text
     plain = TextRenderer(t, redactor, color=False, verbose=config.verbose, width=width, sections=SECTIONS)
     screen = TextRenderer(t, redactor, color=color, verbose=config.verbose, width=width, sections=SECTIONS)

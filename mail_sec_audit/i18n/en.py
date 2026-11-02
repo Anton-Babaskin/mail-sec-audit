@@ -17,7 +17,7 @@ MESSAGES: dict[str, str] = {
         "  --domain DOMAIN       Mail domain for MX/SPF/DMARC checks (enables DNS queries)\n"
         "  --dkim-selector SEL   DKIM selector for the DNS check\n"
         "  --platform NAME       auto, generic, mailcow, iredmail or mailinabox\n"
-        "  --format FORMAT       text, json or fleetops\n"
+        "  --format FORMAT       text, json (FleetOps HealthResult) or json-v1 (2.3 layout)\n"
         "  --lang LANG           ru or en; default from LC_ALL, LC_MESSAGES, LANG\n"
         "  --redact              Hide e-mail addresses, IP addresses, host and user names\n"
         "  --deep                Slower checks: legacy TLS, package integrity, full SUID scan\n"
@@ -45,7 +45,7 @@ MESSAGES: dict[str, str] = {
     "cli.error.date": "{option} requires a valid date YYYY-MM-DD",
     "cli.error.dns_name": "{option} contains an invalid name: {value}",
     "cli.error.platform": "unknown platform: {value}",
-    "cli.error.format": "--format supports text, json or fleetops",
+    "cli.error.format": "--format supports text, json or json-v1",
     "cli.error.lang": "--lang supports ru or en",
     "cli.error.report_once": "--report and --append-report can be given only once",
     "cli.error.json_append": "--append-report cannot be combined with JSON output; use a separate file",
