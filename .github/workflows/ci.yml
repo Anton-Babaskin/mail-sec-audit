@@ -53,3 +53,80 @@ jobs:
 
       - name: ShellCheck
         run: shellcheck mail-sec-audit.sh tests/*.sh
+
+  python:
+    name: Python ${{ matrix.python }} unit and scenario tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Unit and scenario tests
+        run: python -W error::ResourceWarning -m unittest discover -s tests -t . -v
+
+      - name: Build zipapp
+        run: python tools/build_zipapp.py dist/mail-sec-audit.pyz && python -I dist/mail-sec-audit.pyz --version
+
+  lint:
+    name: ruff and mypy --strict
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install development tools
+        run: python -m pip install --disable-pip-version-check "ruff==0.17.3" "mypy==2.4.1"
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format
+        run: ruff format --check mail_sec_audit tests tools
+
+      - name: mypy --strict
+        run: mypy
+
+  container:
+    name: Ubuntu 22.04 container without gawk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container:
+      image: ubuntu:22.04
+
+    steps:
+      - name: Install system Python only
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 ca-certificates
+          if command -v gawk; then echo "gawk must not be installed" >&2; exit 1; fi
+          python3 --version
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Unit and scenario tests with the system Python
+        run: python3 -m unittest discover -s tests -t .

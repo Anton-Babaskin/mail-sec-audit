@@ -1,0 +1,41 @@
+# Tool configuration only. Runtime has no dependencies beyond the Python 3.9+
+# standard library; ruff and mypy are development tools.
+
+[project]
+name = "mail-sec-audit"
+dynamic = ["version"]
+requires-python = ">=3.9"
+description = "Read-only security and health audit for Linux mail servers"
+license = { text = "MIT" }
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+extend-exclude = ["docs/review-2026-11", "lib"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "BLE"]
+ignore = [
+  "S603",   # subprocess without shell: argv lists checked by runner.Policy
+  "S607",   # programs resolved from the fixed PATH by the runner
+  "RUF001", # Cyrillic and typographic characters in message catalogs are intended
+  "RUF002",
+  "RUF003",
+  "UP007",  # Optional[...] reads better than X | None on Python 3.9 runtime paths
+  "UP045",
+  "RUF005", # tuple concatenation keeps the allowlist readable
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S103", "S108", "S404", "S105", "S106", "S603", "S607"]
+"mail_sec_audit/runner.py" = ["S404", "S108"]
+
+[tool.mypy]
+python_version = "3.10"  # mypy 2.x checks >= 3.10; 3.9 runs in CI
+strict = true
+warn_unreachable = true
+files = ["mail_sec_audit", "tests", "tools"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

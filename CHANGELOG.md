@@ -7,6 +7,13 @@ versioning where practical.
 
 ## [Unreleased]
 
+### Added
+
+- New Python 3.9+ core in `mail_sec_audit/` (standard library only): allowlisted command runner with
+  timeouts and output limits, OK/INFO/WARN/FAIL/UNKNOWN/N/A model with stable IDs, evidence and
+  completeness, ru/en catalogs, terminal, JSON v1 and FleetOps renderers, private report files,
+  single-instance lock, signal handling and a zipapp build. Not yet the entry point.
+
 ## [2.3.2] - 2026-11-02
 
 ### Security
