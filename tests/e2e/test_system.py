@@ -6,15 +6,19 @@ captured from a production host (tests/fixtures/shapes/ does not exist yet).
 
 from __future__ import annotations
 
+import os
 import unittest
 
 from mail_sec_audit.model import Status
 from tests.helpers import DENIED, NOW, TIMEOUT, Resp, Responses, run_scenario
 
+# Fixture files are owned by whoever runs the tests; give alice that UID so
+# ownership checks behave the same for every runner (root-owned is accepted).
+ALICE_UID = os.getuid() or 1000
 PASSWD = (
     "root:x:0:0:root:/root:/bin/bash\n"
     "daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n"
-    "alice:x:1000:1000:Alice:/home/alice:/bin/bash\n"
+    f"alice:x:{ALICE_UID}:1000:Alice:/home/alice:/bin/bash\n"
     "postfix:x:110:116::/var/spool/postfix:/usr/sbin/nologin\n"
 )
 SSHD_OK = (
