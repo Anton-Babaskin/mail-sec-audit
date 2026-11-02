@@ -146,6 +146,7 @@ class Rule:
     container: bool = False
     mutating: bool = False
     stdin: bool = False
+    merge_stderr: bool = False
 
     def matches(self, argv: Sequence[str]) -> bool:
         if not argv or argv[0] != self.program:
@@ -228,10 +229,13 @@ RULES: tuple[Rule, ...] = (
         "reads container logs for the audit period",
         timeout=180,
         max_bytes=1024 * MIB,
+        merge_stderr=True,
     ),
     Rule("postconf", L("-h"), "prints main.cf values", rest=POSTFIX_PARAM, max_rest=32, container=True),
     Rule("postconf", L("-x", "-h"), "prints expanded main.cf values", rest=POSTFIX_PARAM, max_rest=32, container=True),
     Rule("postconf", L("-x", "-P"), "prints master.cf -o overrides", container=True),
+    Rule("postconf", L("-x"), "prints expanded main.cf name = value", rest=POSTFIX_PARAM, max_rest=32, container=True),
+    Rule("postconf", L("-M"), "prints master.cf service entries", container=True),
     Rule("doveconf", L("-h") + (OneOf(DOVECOT_PARAMS),), "prints one Dovecot setting; never -x", container=True),
     Rule("postqueue", L("-j"), "prints the queue as JSON lines (showq); read-only", container=True),
     Rule("postqueue", L("-p"), "prints the queue (mailq); read-only", container=True),
@@ -556,7 +560,7 @@ class SystemRunner:
                 resolved,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT if rule.merge_stderr else subprocess.PIPE,
                 env=child_env(),
                 start_new_session=True,
                 close_fds=True,

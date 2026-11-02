@@ -16,6 +16,9 @@ versioning where practical.
 - Host checks in the new core: updates, reboot, effective sshd settings, listeners, firewall, brute-force
   protection, accounts, authorized_keys, disk and inodes, SUID, world-writable paths, failed units,
   AppArmor/SELinux, scheduled jobs, backups, logins and the --deep scans, each with UNKNOWN/N/A handling.
+- Mail checks in the new core: Mail-in-a-Box, Mailcow, iRedMail and generic stack adapters, MTA relay with
+  master.cf overrides, TLS probes, DNS with response codes, queue size, authentication failures and
+  Postfix statistics that resist hostile log fields and do not count content-filter hops.
 
 ## [2.3.2] - 2026-11-02
 
