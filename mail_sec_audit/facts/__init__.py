@@ -2,30 +2,38 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 
 from ..host import Host
 from ..model import Completeness
 from ..runner import Runner
-from ..stacks import detect_stack
 from ..stacks.base import Stack
 from . import (
     accounts,
     backup,
     boot,
     disk,
+    dns,
+    dovecot,
+    exim,
     fail2ban,
     firewall,
     identity,
     keys,
     mac,
+    maillog,
+    opensmtpd,
     packages,
+    postfix,
+    queue,
     scans,
     schedule,
+    sendmail,
     sockets,
     sshd,
     systemd,
+    tls,
 )
 from .accounts import PasswordStatus, Sudoers
 from .base import Output, Unavailable, command_lines
@@ -53,6 +61,7 @@ class Facts:
         self.completeness = completeness
         self._cache: dict[str, Any] = {}
         self.tmpdir = ""
+        self.prober: tls.Prober = tls.SocketProber()
 
     def memo(self, name: str, factory: Callable[[], T]) -> T:
         if name not in self._cache:
@@ -60,16 +69,22 @@ class Facts:
         value: T = self._cache[name]
         return value
 
+    # --- host -------------------------------------------------------------------
     def identity(self) -> identity.Identity:
         return self.memo("identity", lambda: identity.collect(self.host, self.runner))
 
     def stack(self) -> Stack:
+        from ..stacks import detect_stack  # the stack adapters use facts themselves
+
         return self.memo("stack", lambda: detect_stack(self))
 
-    def units(self, extra: tuple[str, ...] = ()) -> Union[systemd.Units, Unavailable]:
-        names = tuple(dict.fromkeys(SECURITY_UNITS + tuple(s.name for s in self.stack().services) + extra))
-        names = tuple(n for n in names if n.endswith((".service", ".socket", ".timer")))
-        return self.memo(f"units:{','.join(names)}", lambda: systemd.units(self.host, self.runner, names))
+    def units_for(self, names: Sequence[str]) -> Union[systemd.Units, Unavailable]:
+        key = ",".join(names)
+        return self.memo(f"units:{key}", lambda: systemd.units(self.host, self.runner, list(names)))
+
+    def units(self) -> Union[systemd.Units, Unavailable]:
+        names = SECURITY_UNITS + tuple(s.name for s in self.stack().services if s.kind == "systemd")
+        return self.units_for(tuple(dict.fromkeys(names)))
 
     def failed_units(self) -> Union[systemd.Lines, Unavailable]:
         return self.memo("failed_units", lambda: systemd.failed(self.host, self.runner))
@@ -80,7 +95,7 @@ class Facts:
     def pending_updates(self) -> Union[packages.Pending, Unavailable]:
         return self.memo("pending", lambda: packages.pending(self.runner, self.tmpdir))
 
-    def package_manager(self) -> str | None:
+    def package_manager(self) -> Optional[str]:
         return self.memo("package_manager", lambda: packages.manager(self.runner))
 
     def apt_metadata(self) -> Union[packages.AptMetadata, Unavailable]:
@@ -161,3 +176,85 @@ class Facts:
 
     def command(self, argv: list[str]) -> Union[Output, Unavailable]:
         return self.memo("cmd:" + " ".join(argv), lambda: command_lines(self.runner, argv))
+
+    # --- mail ---------------------------------------------------------------------
+    def mail_logs(self) -> maillog.LogResult:
+        return self.memo(
+            "mail_logs",
+            lambda: maillog.mail(
+                self.host,
+                self.runner,
+                self.stack(),
+                self.config.period_from,
+                self.config.period_to,
+                self.config.mail_top,
+                self.completeness,
+            ),
+        )
+
+    def ssh_logs(self) -> maillog.LogResult:
+        return self.memo(
+            "ssh_logs",
+            lambda: maillog.ssh(
+                self.host, self.runner, self.config.period_from, self.config.period_to, self.completeness
+            ),
+        )
+
+    def postfix(self) -> Union[postfix.PostfixConfig, Unavailable]:
+        return self.memo("postfix", lambda: postfix.collect(self.runner, self.stack()))
+
+    def dovecot(self) -> dovecot.DovecotSettings:
+        return self.memo("dovecot", lambda: dovecot.collect(self.runner, self.stack()))
+
+    def queue(self) -> Union[queue.QueueSize, Unavailable]:
+        return self.memo("queue", lambda: queue.collect(self.host, self.runner, self.stack()))
+
+    def exim(self) -> Union[exim.EximOptions, Unavailable]:
+        return self.memo("exim", lambda: exim.collect(self.runner))
+
+    def opensmtpd(self) -> Union[opensmtpd.SmtpdConf, Unavailable]:
+        return self.memo("opensmtpd", lambda: opensmtpd.collect(self.host))
+
+    def sendmail(self) -> Union[sendmail.SendmailMc, Unavailable]:
+        return self.memo("sendmail", lambda: sendmail.collect(self.host))
+
+    def dns(self, rtype: str, name: str) -> Union[dns.Answer, Unavailable]:
+        def collect() -> Union[dns.Answer, Unavailable]:
+            if self.runner.which("dig"):
+                self.completeness.external_probes.append(f"dns:{rtype} {name}")
+            return dns.query(self.runner, rtype, name)
+
+        return self.memo(f"dns:{rtype}:{name}", collect)
+
+    def tls_targets(self) -> Union[list[tls.Target], Unavailable]:
+        listeners = self.listeners()
+        if isinstance(listeners, Unavailable):
+            return listeners
+        return tls.targets(listeners)
+
+    def server_name(self) -> str:
+        return self.config.mail_host or self.identity().fqdn
+
+    def handshake(self, target: tls.Target) -> tls.Handshake:
+        def collect() -> tls.Handshake:
+            mode = f"/{target.starttls}" if target.starttls else ""
+            self.completeness.local_probes.append(f"tls:{target.label}{mode}")
+            return self.prober.handshake(target, self.server_name())
+
+        return self.memo(f"tls:{target.label}", collect)
+
+    def legacy_tls(self, target: tls.Target, version: str) -> str:
+        def collect() -> str:
+            self.completeness.local_probes.append(f"{version}:{target.label}")
+            return self.prober.legacy(target, version)
+
+        return self.memo(f"legacy:{version}:{target.label}", collect)
+
+    def certificate(self, target: tls.Target) -> Union[tls.Certificate, Unavailable]:
+        def collect() -> Union[tls.Certificate, Unavailable]:
+            handshake = self.handshake(target)
+            if not handshake.der:
+                return Unavailable("no_data", f"tls:{target.label}")
+            return tls.parse_certificate(self.runner, handshake.der, self.server_name())
+
+        return self.memo(f"cert:{target.label}", collect)

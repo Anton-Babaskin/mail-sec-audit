@@ -16,6 +16,7 @@ from typing import Optional
 
 from . import __version__, cli
 from .facts import Facts
+from .facts.tls import Prober
 from .host import Host
 from .i18n import Translator, select_language
 from .model import Completeness, Finding, Report, Status
@@ -88,12 +89,15 @@ def build_report(
     runner: Runner,
     t: Translator,
     tmpdir: str,
+    prober: Optional[Prober] = None,
 ) -> tuple[Report, dict[str, int]]:
     started = host.now()
     clock = time.monotonic()
     completeness = Completeness()
     facts = Facts(host, runner, config, completeness)
     facts.tmpdir = tmpdir
+    if prober is not None:
+        facts.prober = prober
     ctx = Ctx(config=config, host=host, facts=facts, completeness=completeness)
     stack = facts.stack()
     ctx.stack = stack

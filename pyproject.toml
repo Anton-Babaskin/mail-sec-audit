@@ -31,6 +31,7 @@ ignore = [
 "mail_sec_audit/runner.py" = ["S404", "S108"]
 "mail_sec_audit/facts/scans.py" = ["S108"]
 "mail_sec_audit/facts/sockets.py" = ["S104"]
+"mail_sec_audit/facts/tls.py" = ["S104"]
 "mail_sec_audit/i18n/*.py" = ["E501"]
 
 [tool.mypy]
