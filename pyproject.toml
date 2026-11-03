@@ -27,8 +27,11 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S103", "S108", "S404", "S105", "S106", "S603", "S607"]
+"tests/**" = ["S101", "S103", "S108", "S404", "S105", "S106", "S603", "S607", "E501"]
 "mail_sec_audit/runner.py" = ["S404", "S108"]
+"mail_sec_audit/facts/scans.py" = ["S108"]
+"mail_sec_audit/facts/sockets.py" = ["S104"]
+"mail_sec_audit/i18n/*.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.10"  # mypy 2.x checks >= 3.10; 3.9 runs in CI

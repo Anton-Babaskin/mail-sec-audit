@@ -45,6 +45,8 @@ class Stack:
     brute_force_containers: tuple[str, ...] = ()
     mail_logs: list[LogSource] = field(default_factory=list)
     mail_storage: Optional[str] = None
+    backup_hints: tuple[str, ...] = ()
+    container_states: dict[str, str] = field(default_factory=dict)
     detection: str = ""
 
     def postfix_argv(self, *args: str) -> list[str]:
