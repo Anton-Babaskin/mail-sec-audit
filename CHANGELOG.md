@@ -7,6 +7,22 @@ versioning where practical.
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-11-02
+
+### Security
+
+- Mail-in-a-Box detection no longer runs `mailinabox --version`. The
+  `/usr/local/bin/mailinabox` wrapper ignores arguments and sources
+  `setup/start.sh`, so the read-only audit started the Mail-in-a-Box setup
+  (including `setup/migrate.py --migrate`). The version is now read with
+  `git describe` from the setup checkout named in the wrapper, without
+  executing it.
+- `tests/forbidden_commands.sh` fails CI if the script calls `mailinabox` or
+  Mailcow `update.sh`, using a static scan and exported-function interception
+  (a PATH shim cannot work because the script resets PATH).
+
+## [2.3.0] - 2026-08-20
+
 ### Added
 
 - Mailcow, iRedMail, and Mail-in-a-Box platform detection and collection

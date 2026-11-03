@@ -18,7 +18,7 @@ umask 077
 export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 export LC_ALL=C
 
-SCRIPT_VERSION="2.3.0"
+SCRIPT_VERSION="2.3.1"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 DAYS=7
 MAIL_TOP=20
@@ -454,9 +454,27 @@ detect_mail_platform() {
       PLATFORM_VERSION="$(head -1 /etc/iredmail-release 2>/dev/null | tr -cd '[:alnum:]._-')"
       ;;
     mailinabox)
-      PLATFORM_VERSION="$(mailinabox --version 2>/dev/null | head -1 || true)"
+      PLATFORM_VERSION="$(miab_version)"
       ;;
   esac
+}
+
+# /usr/local/bin/mailinabox is a wrapper around `source setup/start.sh` and
+# ignores its arguments: running it in any form starts the Mail-in-a-Box setup.
+# Read the setup checkout path from the wrapper and ask git for the version.
+miab_setup_dir() {
+  local wrapper="$1" dir
+  dir="$(sed -n 's/^cd //p' "$wrapper" 2>/dev/null | head -1)"
+  [[ "$dir" == /* && "$dir" != *[[:space:]]* && -e "$dir/.git" ]] || return 1
+  printf '%s\n' "$dir"
+}
+
+miab_version() {
+  local dir
+  have git || return 0
+  dir="$(miab_setup_dir /usr/local/bin/mailinabox)" || return 0
+  timeout 8 git -c core.fsmonitor=false --no-pager --no-optional-locks -C "$dir" \
+    describe --always --abbrev=0 2>/dev/null | head -1 | tr -cd '[:alnum:]._-'
 }
 
 collect_mail_logs() {
