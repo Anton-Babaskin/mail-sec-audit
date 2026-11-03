@@ -157,6 +157,8 @@ FleetOps (`fleetops/domain/models.py`) объявляет `HealthResult` и `Che
 mail_sec_audit/
   cli.py       разбор аргументов, без логики проверок
   app.py       блокировка, сигналы, запуск, отчёт, код возврата
+  safefile.py  файл отчёта (O_EXCL|O_NOFOLLOW) и блокировка flock
+  interactive.py  меню Fail2ban, единственный изменяющий режим
   runner.py    allowlist и запуск команд
   model.py     Status, Finding, Evidence, Completeness, Report
   host.py      доступ к файловой системе, часам, euid (подменяется в тестах)
