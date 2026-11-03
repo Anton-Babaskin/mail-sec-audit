@@ -144,6 +144,7 @@ def run_scenario(
     modes: Optional[Mapping[str, int]] = None,
     mtimes: Optional[Mapping[str, float]] = None,
     prober: Optional[Prober] = None,
+    lang: str = "en",
 ) -> Scenario:
     with tempfile.TemporaryDirectory(prefix="msa-fixture.") as root:
         write_tree(root, files or {})
@@ -151,12 +152,20 @@ def run_scenario(
             os.chmod(os.path.join(root, path.lstrip("/")), mode)
         for path, mtime in (mtimes or {}).items():
             os.utime(os.path.join(root, path.lstrip("/")), (mtime, mtime))
-        host = Host(root, denied=denied, now=NOW, euid=euid, env=env or {})
+        host = Host(
+            root,
+            denied=denied,
+            now=NOW,
+            euid=euid,
+            env=env or {},
+            hostname="mx1",
+            uname=("Linux", "6.8.0-45-generic", "x86_64"),
+        )
         runner = FakeRunner(responses)
         tmpdir = os.path.join(root, "tmp", "mail-sec-audit.test")
         os.makedirs(tmpdir, exist_ok=True)
         report, durations = build_report(
-            config(*args), host, runner, Translator("en", strict=True), tmpdir, prober or NoNetwork()
+            config(*args), host, runner, Translator(lang, strict=True), tmpdir, prober or NoNetwork()
         )
         # Render every message in both languages strictly: a missing key or
         # placeholder fails the test.

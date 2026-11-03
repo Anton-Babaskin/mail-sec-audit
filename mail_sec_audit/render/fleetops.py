@@ -1,4 +1,4 @@
-"""``--format fleetops``: FleetOps ``HealthResult`` (schema_version "1.0").
+"""``--format json``: FleetOps ``HealthResult`` (schema_version "1.0").
 
 Field names and constraints follow ``fleetops/domain/models.py`` in
 Anton-Babaskin/FleetOps: ``HealthResult`` and ``CheckResult`` forbid extra

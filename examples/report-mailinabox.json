@@ -1,0 +1,1771 @@
+{
+  "schema_version": "1.0",
+  "host": {
+    "id": "8e24d722ada4191f",
+    "hostname": "mx1.example.org"
+  },
+  "collected_at": "2026-11-02T12:00:00+00:00",
+  "duration_ms": 4210,
+  "overall_status": "warning",
+  "checks": [
+    {
+      "name": "CTX.AUDIT",
+      "status": "ok",
+      "summary": "mail-sec-audit 3.0.0",
+      "metrics": {
+        "tool": "mail-sec-audit",
+        "version": "3.0.0",
+        "platform": "mailinabox",
+        "platform_version": "v78",
+        "period_from": "2026-10-26T00:00:00+00:00",
+        "period_to": "2026-11-02T12:00:00+00:00",
+        "domain": "example.org",
+        "completeness": [
+          {
+            "source": "journal:ssh.service,sshd.service",
+            "state": "empty"
+          },
+          {
+            "source": "log:/var/log/mail.log",
+            "state": "ok"
+          },
+          {
+            "source": "file:/var/lib/apt/lists",
+            "state": "empty"
+          },
+          {
+            "source": "dns:TXT _smtp._tls.example.org",
+            "state": "error"
+          },
+          {
+            "source": "cmd:find /home /root /tmp /var/tmp /dev/shm -xdev -type f -perm -4000 -print0",
+            "state": "missing"
+          },
+          {
+            "source": "cmd:find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt -xdev -type f -perm -4000 -print0",
+            "state": "missing"
+          },
+          {
+            "source": "cmd:find /etc /usr/local /opt -xdev ( -type f -o -type d ) -perm -0002 -printf %y %m %p\\0",
+            "state": "missing"
+          },
+          {
+            "source": "cmd:systemctl --failed --no-legend --plain --no-pager",
+            "state": "missing"
+          },
+          {
+            "source": "cmd:last -a -w -n 20",
+            "state": "missing"
+          }
+        ],
+        "local_probes": [
+          "tls:127.0.0.1:25/smtp",
+          "tls:127.0.0.1:465",
+          "tls:127.0.0.1:993"
+        ],
+        "external_probes": [
+          "dns:MX example.org",
+          "dns:TXT example.org",
+          "dns:TXT _dmarc.example.org",
+          "dns:TXT _mta-sts.example.org",
+          "dns:TXT _smtp._tls.example.org",
+          "dns:A mx1.example.org",
+          "dns:PTR 192.0.2.25"
+        ]
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "CTX.PRIVILEGES",
+      "status": "ok",
+      "summary": "Running as root: all local checks are available",
+      "metrics": {
+        "native_status": "OK",
+        "section": "CTX",
+        "source": "proc:euid",
+        "evidence": [
+          {
+            "source": "proc:euid",
+            "excerpt": [
+              "euid=0"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "CTX.FQDN",
+      "status": "ok",
+      "summary": "Host name mx1.example.org looks like an FQDN",
+      "metrics": {
+        "native_status": "OK",
+        "section": "CTX",
+        "source": "cmd:hostname -f",
+        "evidence": [
+          {
+            "source": "cmd:hostname -f",
+            "excerpt": [
+              "mx1.example.org"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "CTX.PLATFORM",
+      "status": "ok",
+      "summary": "Platform: mailinabox v78",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "CTX",
+        "source": "stack:detect",
+        "evidence": [
+          {
+            "source": "stack:detect",
+            "excerpt": [
+              "platform mailinabox (auto)",
+              "mta postfix",
+              "imap dovecot",
+              "cmd:git -c core.fsmonitor=false --no-pager --no-optional-locks -C /root/mailinabox describe --always --abbrev=0"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "PATCH.PENDING_UPDATES",
+      "status": "ok",
+      "summary": "No pending updates according to the apt cache",
+      "metrics": {
+        "native_status": "OK",
+        "section": "PATCH",
+        "source": "cmd:apt-get -s -o Debug::NoLocking=1 dist-upgrade",
+        "evidence": [
+          {
+            "source": "cmd:apt-get -s -o Debug::NoLocking=1 dist-upgrade",
+            "excerpt": []
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "PATCH.APT_METADATA_AGE",
+      "status": "unknown",
+      "summary": "No data: /var/lib/apt/lists returned nothing usable",
+      "metrics": {
+        "native_status": "UNKNOWN",
+        "section": "PATCH",
+        "source": "file:/var/lib/apt/lists",
+        "evidence": [
+          {
+            "source": "file:/var/lib/apt/lists",
+            "excerpt": []
+          }
+        ],
+        "next_step": "Run the audit as root or install the missing tool, then repeat this check."
+      },
+      "reason": "no_data",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "PATCH.AUTO_UPDATES",
+      "status": "ok",
+      "summary": "Automatic updates are not enabled (apt)",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "PATCH",
+        "source": "file:/etc/apt/apt.conf.d",
+        "evidence": [
+          {
+            "source": "file:/etc/apt/apt.conf.d",
+            "excerpt": []
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "PATCH.REBOOT_REQUIRED",
+      "status": "ok",
+      "summary": "No pending reboot (running kernel 6.8.0-45-generic)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "PATCH",
+        "source": "file:/boot",
+        "evidence": [
+          {
+            "source": "file:/boot",
+            "excerpt": [
+              "running 6.8.0-45-generic"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "STACK.MTA_DETECTED",
+      "status": "ok",
+      "summary": "MTA: postfix",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "STACK",
+        "source": "stack:detect",
+        "evidence": [
+          {
+            "source": "stack:detect",
+            "excerpt": [
+              "mta postfix"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "STACK.IMAP_DETECTED",
+      "status": "ok",
+      "summary": "IMAP/POP3: dovecot",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "STACK",
+        "source": "stack:detect",
+        "evidence": [
+          {
+            "source": "stack:detect",
+            "excerpt": [
+              "imap dovecot"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "STACK.SERVICE@postfix.service",
+      "status": "ok",
+      "summary": "postfix.service is running",
+      "metrics": {
+        "native_status": "OK",
+        "section": "STACK",
+        "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+        "evidence": [
+          {
+            "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+            "excerpt": [
+              "postfix.service: active"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "STACK.SERVICE@dovecot.service",
+      "status": "ok",
+      "summary": "dovecot.service is running",
+      "metrics": {
+        "native_status": "OK",
+        "section": "STACK",
+        "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+        "evidence": [
+          {
+            "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+            "excerpt": [
+              "dovecot.service: active"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "STACK.SERVICE@opendkim.service",
+      "status": "ok",
+      "summary": "opendkim.service is running",
+      "metrics": {
+        "native_status": "OK",
+        "section": "STACK",
+        "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+        "evidence": [
+          {
+            "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+            "excerpt": [
+              "opendkim.service: active"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "STACK.SERVICE@spampd.service",
+      "status": "warning",
+      "summary": "spampd.service is not running (failed)",
+      "metrics": {
+        "native_status": "WARN",
+        "section": "STACK",
+        "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+        "evidence": [
+          {
+            "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+            "excerpt": [
+              "spampd.service: failed"
+            ]
+          }
+        ],
+        "next_step": "Check the service status and its log, then start it."
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "STACK.SERVICE@nginx.service",
+      "status": "ok",
+      "summary": "nginx.service is running",
+      "metrics": {
+        "native_status": "OK",
+        "section": "STACK",
+        "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+        "evidence": [
+          {
+            "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+            "excerpt": [
+              "nginx.service: active"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "STACK.CONTAINERS_HEALTH",
+      "status": "ok",
+      "summary": "Not applicable: no compose project",
+      "metrics": {
+        "native_status": "N/A",
+        "section": "STACK",
+        "source": null,
+        "evidence": [],
+        "next_step": null
+      },
+      "reason": "not_applicable",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "SSH.ROOT_LOGIN",
+      "status": "warning",
+      "summary": "SSH: root may log in with a key; a separate sudo user is safer",
+      "metrics": {
+        "native_status": "WARN",
+        "section": "SSH",
+        "source": "cmd:sshd -T",
+        "evidence": [
+          {
+            "source": "cmd:sshd -T",
+            "excerpt": [
+              "permitrootlogin prohibit-password",
+              "passwordauthentication no"
+            ]
+          }
+        ],
+        "next_step": "Set PermitRootLogin no, keep a second session open and check access before reloading sshd."
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "SSH.PASSWORD_AUTH",
+      "status": "ok",
+      "summary": "SSH: password authentication is disabled",
+      "metrics": {
+        "native_status": "OK",
+        "section": "SSH",
+        "source": "cmd:sshd -T",
+        "evidence": [
+          {
+            "source": "cmd:sshd -T",
+            "excerpt": [
+              "passwordauthentication no"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "SSH.PUBKEY_AUTH",
+      "status": "ok",
+      "summary": "SSH: public key authentication is enabled",
+      "metrics": {
+        "native_status": "OK",
+        "section": "SSH",
+        "source": "cmd:sshd -T",
+        "evidence": [
+          {
+            "source": "cmd:sshd -T",
+            "excerpt": [
+              "pubkeyauthentication yes"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "SSH.KBD_INTERACTIVE",
+      "status": "ok",
+      "summary": "SSH: keyboard-interactive authentication is disabled",
+      "metrics": {
+        "native_status": "OK",
+        "section": "SSH",
+        "source": "cmd:sshd -T",
+        "evidence": [
+          {
+            "source": "cmd:sshd -T",
+            "excerpt": [
+              "kbdinteractiveauthentication no"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "SSH.X11_FORWARDING",
+      "status": "ok",
+      "summary": "SSH: X11 forwarding is disabled",
+      "metrics": {
+        "native_status": "OK",
+        "section": "SSH",
+        "source": "cmd:sshd -T",
+        "evidence": [
+          {
+            "source": "cmd:sshd -T",
+            "excerpt": [
+              "x11forwarding no"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "SSH.MAX_AUTH_TRIES",
+      "status": "ok",
+      "summary": "SSH: MaxAuthTries 6",
+      "metrics": {
+        "native_status": "OK",
+        "section": "SSH",
+        "source": "cmd:sshd -T",
+        "evidence": [
+          {
+            "source": "cmd:sshd -T",
+            "excerpt": [
+              "maxauthtries 6"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "NET.LISTENERS",
+      "status": "ok",
+      "summary": "No unexpected non-loopback listeners (4 public sockets match the expected list)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "NET",
+        "source": "cmd:ss -H -l -n -t -u",
+        "evidence": [
+          {
+            "source": "cmd:ss -H -l -n -t -u",
+            "excerpt": [
+              "tcp/0.0.0.0:25",
+              "tcp/0.0.0.0:465",
+              "tcp/0.0.0.0:993",
+              "tcp/0.0.0.0:12340"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "FW.HOST_FIREWALL",
+      "status": "ok",
+      "summary": "Host firewall is active: ufw",
+      "metrics": {
+        "native_status": "OK",
+        "section": "FW",
+        "source": "cmd:ufw status verbose",
+        "evidence": [
+          {
+            "source": "cmd:ufw status verbose",
+            "excerpt": [
+              "ufw: active"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "BRUTE.PROTECTION",
+      "status": "ok",
+      "summary": "Brute-force protection is active: fail2ban",
+      "metrics": {
+        "native_status": "OK",
+        "section": "BRUTE",
+        "source": "cmd:fail2ban-client status",
+        "evidence": [
+          {
+            "source": "cmd:fail2ban-client status",
+            "excerpt": [
+              "fail2ban: pong"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "BRUTE.FAIL2BAN",
+      "status": "ok",
+      "summary": "Fail2ban answers",
+      "metrics": {
+        "native_status": "OK",
+        "section": "BRUTE",
+        "source": "cmd:fail2ban-client status",
+        "evidence": [
+          {
+            "source": "cmd:fail2ban-client status",
+            "excerpt": [
+              "pong"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "BRUTE.FAIL2BAN_JAILS",
+      "status": "ok",
+      "summary": "Fail2ban: 3 jail(s), 3 address(es) banned now",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "BRUTE",
+        "source": "cmd:fail2ban-client status",
+        "evidence": [
+          {
+            "source": "cmd:fail2ban-client status",
+            "excerpt": [
+              "dovecot: banned=? total=?",
+              "postfix-sasl: banned=? total=?",
+              "sshd: banned=3 total=41"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "AUTH.SSH_FAILURES",
+      "status": "ok",
+      "summary": "SSH: 0 failed, 0 invalid users, 0 accepted logins (about 0 failures per day)",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "AUTH",
+        "source": "log:ssh",
+        "evidence": [
+          {
+            "source": "log:ssh",
+            "excerpt": [
+              "failed=0 invalid_user=0 accepted=0"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "AUTH.MAIL_FAILURES",
+      "status": "ok",
+      "summary": "Mail authentication failures: 2 (about 0 per day)",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "AUTH",
+        "source": "log:mail",
+        "evidence": [
+          {
+            "source": "log:mail",
+            "excerpt": [
+              "failed=2"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "FLOW.STATS",
+      "status": "ok",
+      "summary": "Postfix: 1 outbound message(s), 1 external delivery(ies), 1 locally delivered",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "FLOW",
+        "source": "log:mail",
+        "evidence": [
+          {
+            "source": "log:mail",
+            "excerpt": [
+              "lines in period 8 of 8",
+              "unparsed postfix lines 0"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "MTA.RELAY_RESTRICTIONS",
+      "status": "ok",
+      "summary": "Postfix refuses relaying for unauthorised clients on port 25 (smtp/inet)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "MTA",
+        "source": "cmd:postconf -x smtpd_relay_restrictions smtpd_recipient_restrictions mynetworks mynetworks_style virtual_mailbox_base mail_version",
+        "evidence": [
+          {
+            "source": "cmd:postconf -x smtpd_relay_restrictions smtpd_recipient_restrictions mynetworks mynetworks_style virtual_mailbox_base mail_version",
+            "excerpt": [
+              "port 25: smtp inet -> smtpd (smtp/inet)",
+              "smtpd_relay_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination",
+              "smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unlisted_recipient"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "MTA.MYNETWORKS",
+      "status": "ok",
+      "summary": "Postfix mynetworks does not include the Internet",
+      "metrics": {
+        "native_status": "OK",
+        "section": "MTA",
+        "source": "cmd:postconf -x smtpd_relay_restrictions smtpd_recipient_restrictions mynetworks mynetworks_style virtual_mailbox_base mail_version",
+        "evidence": [
+          {
+            "source": "cmd:postconf -x smtpd_relay_restrictions smtpd_recipient_restrictions mynetworks mynetworks_style virtual_mailbox_base mail_version",
+            "excerpt": [
+              "mynetworks = 127.0.0.0/8 [::1]/128"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "MTA.EXIM_RELAY_HOSTS",
+      "status": "ok",
+      "summary": "Not applicable: the MTA is not Exim",
+      "metrics": {
+        "native_status": "N/A",
+        "section": "MTA",
+        "source": null,
+        "evidence": [],
+        "next_step": null
+      },
+      "reason": "not_applicable",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "MTA.OPENSMTPD_RELAY",
+      "status": "ok",
+      "summary": "Not applicable: the MTA is not OpenSMTPD",
+      "metrics": {
+        "native_status": "N/A",
+        "section": "MTA",
+        "source": null,
+        "evidence": [],
+        "next_step": null
+      },
+      "reason": "not_applicable",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "MTA.SENDMAIL_RELAY",
+      "status": "ok",
+      "summary": "Not applicable: the MTA is not Sendmail",
+      "metrics": {
+        "native_status": "N/A",
+        "section": "MTA",
+        "source": null,
+        "evidence": [],
+        "next_step": null
+      },
+      "reason": "not_applicable",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "MTA.EXTERNAL_TEST",
+      "status": "ok",
+      "summary": "A local audit cannot prove there is no open relay; test from an external untrusted host",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "MTA",
+        "source": "note",
+        "evidence": [
+          {
+            "source": "note",
+            "excerpt": [
+              "local configuration cannot prove the absence of an open relay"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "TLS.HANDSHAKE@25",
+      "status": "warning",
+      "summary": "Port 25: TLS handshake failed (STARTTLS not offered)",
+      "metrics": {
+        "native_status": "WARN",
+        "section": "TLS",
+        "source": "tls:127.0.0.1:25",
+        "evidence": [
+          {
+            "source": "tls:127.0.0.1:25",
+            "excerpt": [
+              "STARTTLS not offered"
+            ]
+          }
+        ],
+        "next_step": "Check the TLS configuration of the service on this port."
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "TLS.HANDSHAKE@465",
+      "status": "ok",
+      "summary": "Port 465: TLS handshake (TLSv1.3)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "TLS",
+        "source": "tls:127.0.0.1:465",
+        "evidence": [
+          {
+            "source": "tls:127.0.0.1:465",
+            "excerpt": [
+              "TLSv1.3"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "TLS.HANDSHAKE@993",
+      "status": "ok",
+      "summary": "Port 993: TLS handshake (TLSv1.3)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "TLS",
+        "source": "tls:127.0.0.1:993",
+        "evidence": [
+          {
+            "source": "tls:127.0.0.1:993",
+            "excerpt": [
+              "TLSv1.3"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "TLS.CERT_EXPIRY@465",
+      "status": "ok",
+      "summary": "Port 465: certificate is valid for 57 more day(s)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "TLS",
+        "source": "tls:127.0.0.1:465",
+        "evidence": [
+          {
+            "source": "tls:127.0.0.1:465",
+            "excerpt": [
+              "subject CN = mx1.example.org",
+              "issuer C = US, O = Let's Encrypt, CN = R11",
+              "notAfter 2026-12-30 00:00 UTC"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "TLS.CERT_EXPIRY@993",
+      "status": "ok",
+      "summary": "Port 993: certificate is valid for 57 more day(s)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "TLS",
+        "source": "tls:127.0.0.1:993",
+        "evidence": [
+          {
+            "source": "tls:127.0.0.1:993",
+            "excerpt": [
+              "subject CN = mx1.example.org",
+              "issuer C = US, O = Let's Encrypt, CN = R11",
+              "notAfter 2026-12-30 00:00 UTC"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "TLS.CERT_NAME@465",
+      "status": "ok",
+      "summary": "Port 465: certificate covers mx1.example.org",
+      "metrics": {
+        "native_status": "OK",
+        "section": "TLS",
+        "source": "tls:127.0.0.1:465",
+        "evidence": [
+          {
+            "source": "tls:127.0.0.1:465",
+            "excerpt": [
+              "subject CN = mx1.example.org",
+              "checkhost mx1.example.org"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "TLS.CERT_NAME@993",
+      "status": "ok",
+      "summary": "Port 993: certificate covers mx1.example.org",
+      "metrics": {
+        "native_status": "OK",
+        "section": "TLS",
+        "source": "tls:127.0.0.1:993",
+        "evidence": [
+          {
+            "source": "tls:127.0.0.1:993",
+            "excerpt": [
+              "subject CN = mx1.example.org",
+              "checkhost mx1.example.org"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "TLS.DOVECOT_MIN_PROTOCOL",
+      "status": "ok",
+      "summary": "Dovecot ssl_min_protocol = TLSv1.2",
+      "metrics": {
+        "native_status": "OK",
+        "section": "TLS",
+        "source": "cmd:doveconf -h",
+        "evidence": [
+          {
+            "source": "cmd:doveconf -h",
+            "excerpt": [
+              "ssl_min_protocol = TLSv1.2",
+              "ssl = required"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DNS.MX",
+      "status": "ok",
+      "summary": "example.org has 1 MX record(s)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "DNS",
+        "source": "dns:MX example.org",
+        "evidence": [
+          {
+            "source": "dns:MX example.org",
+            "excerpt": [
+              "10 mx1.example.org"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DNS.SPF",
+      "status": "ok",
+      "summary": "SPF is published as one record",
+      "metrics": {
+        "native_status": "OK",
+        "section": "DNS",
+        "source": "dns:TXT example.org",
+        "evidence": [
+          {
+            "source": "dns:TXT example.org",
+            "excerpt": [
+              "v=spf1 mx -all"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DNS.DMARC",
+      "status": "warning",
+      "summary": "DMARC policy is p=none (monitoring only)",
+      "metrics": {
+        "native_status": "WARN",
+        "section": "DNS",
+        "source": "dns:TXT _dmarc.example.org",
+        "evidence": [
+          {
+            "source": "dns:TXT _dmarc.example.org",
+            "excerpt": [
+              "v=DMARC1; p=none"
+            ]
+          }
+        ],
+        "next_step": "Publish _dmarc with p=quarantine or p=reject after reviewing reports."
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DNS.DKIM",
+      "status": "ok",
+      "summary": "Not requested: pass --dkim-selector for the DKIM check",
+      "metrics": {
+        "native_status": "N/A",
+        "section": "DNS",
+        "source": null,
+        "evidence": [],
+        "next_step": null
+      },
+      "reason": "not_requested",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DNS.DKIM_KEY",
+      "status": "ok",
+      "summary": "Not requested: pass --dkim-selector for the DKIM check",
+      "metrics": {
+        "native_status": "N/A",
+        "section": "DNS",
+        "source": null,
+        "evidence": [],
+        "next_step": null
+      },
+      "reason": "not_requested",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DNS.MTA_STS",
+      "status": "ok",
+      "summary": "No MTA-STS TXT record",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "DNS",
+        "source": "dns:TXT _mta-sts.example.org",
+        "evidence": [
+          {
+            "source": "dns:TXT _mta-sts.example.org",
+            "excerpt": [
+              "NXDOMAIN"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DNS.TLS_RPT",
+      "status": "unknown",
+      "summary": "Not checked: TXT _smtp._tls.example.org failed (DNS status SERVFAIL)",
+      "metrics": {
+        "native_status": "UNKNOWN",
+        "section": "DNS",
+        "source": "dns:TXT _smtp._tls.example.org",
+        "evidence": [
+          {
+            "source": "dns:TXT _smtp._tls.example.org",
+            "excerpt": []
+          }
+        ],
+        "next_step": "Run the audit as root or install the missing tool, then repeat this check."
+      },
+      "reason": "command_failed",
+      "error": "Not checked: TXT _smtp._tls.example.org failed (DNS status SERVFAIL)",
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DNS.PTR@192.0.2.25",
+      "status": "ok",
+      "summary": "PTR of 192.0.2.25 is mx1.example.org",
+      "metrics": {
+        "native_status": "OK",
+        "section": "DNS",
+        "source": "dns:PTR 192.0.2.25",
+        "evidence": [
+          {
+            "source": "dns:PTR 192.0.2.25",
+            "excerpt": [
+              "mx1.example.org"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "USERS.UID0",
+      "status": "ok",
+      "summary": "Only one account has UID 0",
+      "metrics": {
+        "native_status": "OK",
+        "section": "USERS",
+        "source": "file:/etc/passwd",
+        "evidence": [
+          {
+            "source": "file:/etc/passwd",
+            "excerpt": [
+              "root:0"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "USERS.EMPTY_PASSWORD",
+      "status": "ok",
+      "summary": "No accounts without a password",
+      "metrics": {
+        "native_status": "OK",
+        "section": "USERS",
+        "source": "cmd:passwd -S -a",
+        "evidence": [
+          {
+            "source": "cmd:passwd -S -a",
+            "excerpt": []
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "USERS.INTERACTIVE_ACCOUNTS",
+      "status": "ok",
+      "summary": "1 account(s) have a login shell",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "USERS",
+        "source": "file:/etc/passwd",
+        "evidence": [
+          {
+            "source": "file:/etc/passwd",
+            "excerpt": [
+              "root uid=0 home=/root shell=/bin/bash"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "USERS.SUDO_NOPASSWD",
+      "status": "ok",
+      "summary": "No sudo rules with NOPASSWD",
+      "metrics": {
+        "native_status": "OK",
+        "section": "USERS",
+        "source": "file:/etc/sudoers",
+        "evidence": [
+          {
+            "source": "file:/etc/sudoers",
+            "excerpt": []
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "KEYS.AUTHORIZED_KEYS",
+      "status": "ok",
+      "summary": "0 authorized_keys file(s) with 0 key line(s)",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "KEYS",
+        "source": "sshd:authorizedkeysfile .ssh/authorized_keys .ssh/authorized_keys2",
+        "evidence": [
+          {
+            "source": "sshd:authorizedkeysfile .ssh/authorized_keys .ssh/authorized_keys2",
+            "excerpt": []
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DISK.USAGE",
+      "status": "ok",
+      "summary": "Filesystem usage is below 85% on 1 filesystem(s)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "DISK",
+        "source": "cmd:df -P -B1 -x tmpfs -x devtmpfs -x squashfs -x overlay",
+        "evidence": [
+          {
+            "source": "cmd:df -P -B1 -x tmpfs -x devtmpfs -x squashfs -x overlay",
+            "excerpt": [
+              "40% /"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DISK.INODES",
+      "status": "ok",
+      "summary": "Inode usage is below 85% on 1 filesystem(s)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "DISK",
+        "source": "cmd:df -P -i -x tmpfs -x devtmpfs -x squashfs -x overlay",
+        "evidence": [
+          {
+            "source": "cmd:df -P -i -x tmpfs -x devtmpfs -x squashfs -x overlay",
+            "excerpt": [
+              "5% /"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DISK.MAIL_STORAGE",
+      "status": "ok",
+      "summary": "Mailbox storage: /home/user-data/mail/mailboxes",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "DISK",
+        "source": "cmd:df -P -B1 /home/user-data/mail/mailboxes",
+        "evidence": [
+          {
+            "source": "cmd:df -P -B1 /home/user-data/mail/mailboxes",
+            "excerpt": [
+              "Filesystem 1-blocks Used Available Capacity Mounted on",
+              "/dev/sda1 100 40 60 40% /"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "QUEUE.SIZE",
+      "status": "ok",
+      "summary": "Mail queue: 0 message(s)",
+      "metrics": {
+        "native_status": "OK",
+        "section": "QUEUE",
+        "source": "cmd:postqueue -j",
+        "evidence": [
+          {
+            "source": "cmd:postqueue -j",
+            "excerpt": [
+              "queued messages: 0"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "SUID.UNEXPECTED_LOCATIONS",
+      "status": "unknown",
+      "summary": "Not checked: find is not installed",
+      "metrics": {
+        "native_status": "UNKNOWN",
+        "section": "SUID",
+        "source": "cmd:find /home /root /tmp /var/tmp /dev/shm -xdev -type f -perm -4000 -print0",
+        "evidence": [
+          {
+            "source": "cmd:find /home /root /tmp /var/tmp /dev/shm -xdev -type f -perm -4000 -print0",
+            "excerpt": []
+          }
+        ],
+        "next_step": "Run the audit as root or install the missing tool, then repeat this check."
+      },
+      "reason": "missing_tool",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "SUID.STANDARD_PATHS",
+      "status": "unknown",
+      "summary": "Not checked: find is not installed",
+      "metrics": {
+        "native_status": "UNKNOWN",
+        "section": "SUID",
+        "source": "cmd:find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt -xdev -type f -perm -4000 -print0",
+        "evidence": [
+          {
+            "source": "cmd:find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt -xdev -type f -perm -4000 -print0",
+            "excerpt": []
+          }
+        ],
+        "next_step": "Run the audit as root or install the missing tool, then repeat this check."
+      },
+      "reason": "missing_tool",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "PERMS.WORLD_WRITABLE",
+      "status": "unknown",
+      "summary": "Not checked: find is not installed",
+      "metrics": {
+        "native_status": "UNKNOWN",
+        "section": "PERMS",
+        "source": "cmd:find /etc /usr/local /opt -xdev ( -type f -o -type d ) -perm -0002 -printf %y %m %p\\0",
+        "evidence": [
+          {
+            "source": "cmd:find /etc /usr/local /opt -xdev ( -type f -o -type d ) -perm -0002 -printf %y %m %p\\0",
+            "excerpt": []
+          }
+        ],
+        "next_step": "Run the audit as root or install the missing tool, then repeat this check."
+      },
+      "reason": "missing_tool",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "MAC.FAILED_UNITS",
+      "status": "unknown",
+      "summary": "Not checked: systemctl is not installed",
+      "metrics": {
+        "native_status": "UNKNOWN",
+        "section": "MAC",
+        "source": "cmd:systemctl --failed --no-legend --plain --no-pager",
+        "evidence": [
+          {
+            "source": "cmd:systemctl --failed --no-legend --plain --no-pager",
+            "excerpt": []
+          }
+        ],
+        "next_step": "Run the audit as root or install the missing tool, then repeat this check."
+      },
+      "reason": "missing_tool",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "MAC.FRAMEWORK",
+      "status": "ok",
+      "summary": "No AppArmor or SELinux enforcement detected",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "MAC",
+        "source": "file:/sys",
+        "evidence": [
+          {
+            "source": "file:/sys",
+            "excerpt": [
+              "no AppArmor or SELinux enforcement detected"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "SCHED.INVENTORY",
+      "status": "ok",
+      "summary": "Scheduled jobs: 0 in /etc/cron.d, 0 user crontab(s), 0 timer(s), 0 custom unit(s)",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "SCHED",
+        "source": "file:/etc/cron.d",
+        "evidence": [
+          {
+            "source": "file:/etc/cron.d",
+            "excerpt": []
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "BACKUP.INDICATORS",
+      "status": "ok",
+      "summary": "2 backup indicator(s) found; success and restore are not verified",
+      "metrics": {
+        "native_status": "INFO",
+        "section": "BACKUP",
+        "source": "file:/etc/cron.*,/etc/systemd/system",
+        "evidence": [
+          {
+            "source": "file:/etc/cron.*,/etc/systemd/system",
+            "excerpt": [
+              "path /home/user-data/backup/encrypted",
+              "path /home/user-data/backup"
+            ]
+          }
+        ],
+        "next_step": null
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "LOGIN.RECENT",
+      "status": "unknown",
+      "summary": "Not checked: last is not installed",
+      "metrics": {
+        "native_status": "UNKNOWN",
+        "section": "LOGIN",
+        "source": "cmd:last -a -w -n 20",
+        "evidence": [
+          {
+            "source": "cmd:last -a -w -n 20",
+            "excerpt": []
+          }
+        ],
+        "next_step": "Run the audit as root or install the missing tool, then repeat this check."
+      },
+      "reason": "missing_tool",
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "FLOW.STATISTICS",
+      "status": "ok",
+      "summary": "Postfix statistics",
+      "metrics": {
+        "totals": {
+          "outbound_messages": 1,
+          "authenticated_submissions": 1,
+          "authenticated_outbound_messages": 1,
+          "outbound_deliveries": 1,
+          "incoming_messages": 1,
+          "incoming_deliveries": 1,
+          "bounced_deliveries": 0,
+          "deferred_deliveries": 0,
+          "expired_messages": 0,
+          "internal_hops": 0,
+          "outbound_bytes": 2048,
+          "tracked_queue_ids": 2
+        },
+        "delivery_status": {
+          "sent": 2
+        },
+        "top_users": [
+          {
+            "address": "alice@example.org",
+            "submitted": 1,
+            "messages": 1,
+            "deliveries": 1,
+            "bytes": 2048,
+            "first": "2026-11-01 10:00:00+00:00",
+            "last": "2026-11-01 10:00:03+00:00"
+          }
+        ],
+        "top_senders": [
+          {
+            "address": "alice@example.org",
+            "submitted": 0,
+            "messages": 1,
+            "deliveries": 1,
+            "bytes": 2048,
+            "first": "2026-11-01 10:00:00+00:00",
+            "last": "2026-11-01 10:00:03+00:00"
+          }
+        ],
+        "top_sender_domains": [
+          {
+            "domain": "example.org",
+            "count": 1
+          }
+        ],
+        "top_recipient_domains": [
+          {
+            "domain": "remote.example",
+            "count": 1
+          }
+        ],
+        "top_incoming_domains": [
+          {
+            "domain": "remote.example",
+            "count": 1
+          }
+        ],
+        "unparsed_postfix_lines": 0,
+        "period": {
+          "requested_from": "2026-10-26 00:00:00+00:00",
+          "requested_to": "2026-11-02 12:00:00+00:00",
+          "observed_from": "2026-11-01 10:00:00+00:00",
+          "observed_to": "2026-11-01 12:00:00+00:00"
+        },
+        "source": {
+          "lines_scanned": 8,
+          "timestamped_lines": 8,
+          "lines_in_period": 8
+        }
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    },
+    {
+      "name": "DISK.FILESYSTEMS",
+      "status": "ok",
+      "summary": "filesystems",
+      "metrics": {
+        "filesystems": [
+          {
+            "filesystem": "/dev/sda1",
+            "bytes_total": 100,
+            "bytes_used": 40,
+            "bytes_available": 60,
+            "used_percent": 40,
+            "mountpoint": "/"
+          }
+        ]
+      },
+      "reason": null,
+      "error": null,
+      "timed_out": false,
+      "duration_ms": 0,
+      "raw_ref": null
+    }
+  ]
+}

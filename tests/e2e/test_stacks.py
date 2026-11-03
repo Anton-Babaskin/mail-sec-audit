@@ -109,6 +109,9 @@ def miab() -> tuple[dict[str, str], Responses]:
         "/home/user-data/backup/encrypted/duplicity-full.vol1.difftar.gpg": "",
         "/var/log/mail.log": MIAB_LOG,
         "/run/systemd/system/.keep": "",
+        "/etc/os-release": 'PRETTY_NAME="Ubuntu 22.04.5 LTS"\n',
+        "/boot/vmlinuz-6.8.0-45-generic": "",
+        "/etc/passwd": "root:x:0:0:root:/root:/bin/bash\nuser-data:x:1001:1001::/home/user-data:/usr/sbin/nologin\n",
     }
     responses: Responses = {
         ("hostname", "-f"): Resp("mx1.example.org\n"),
@@ -130,6 +133,19 @@ def miab() -> tuple[dict[str, str], Responses]:
         ("ss", "-H", "-l", "-n", "-t", "-u"): Resp(SS_MAIL),
         ("openssl", "x509"): Resp(CERT_OK),
         ("journalctl",): Resp(""),
+        ("apt-get",): Resp("Reading package lists...\n"),
+        ("sshd", "-T"): Resp(
+            "port 22\npermitrootlogin prohibit-password\npasswordauthentication no\npubkeyauthentication yes\nkbdinteractiveauthentication no\nx11forwarding no\nmaxauthtries 6\n"
+        ),
+        ("ufw", "status", "verbose"): Resp("Status: active\n"),
+        ("fail2ban-client", "ping"): Resp("Server replied: pong\n"),
+        ("fail2ban-client", "status"): Resp("`- Jail list:\tdovecot, postfix-sasl, sshd\n"),
+        ("fail2ban-client", "status", "sshd"): Resp("   |- Currently banned:\t3\n   |- Total banned:\t41\n"),
+        ("passwd", "-S", "-a"): Resp("root P 2026-01-01 0 99999 7 -1\n"),
+        ("df", "-P", "-B1"): Resp(
+            "Filesystem 1-blocks Used Available Capacity Mounted on\n/dev/sda1 100 40 60 40% /\n"
+        ),
+        ("df", "-P", "-i"): Resp("Filesystem Inodes IUsed IFree IUse% Mounted on\n/dev/sda1 100 5 95 5% /\n"),
         **postfix_responses(),
         **dns_responses(),
     }

@@ -231,7 +231,8 @@ class SystemScenarioTest(unittest.TestCase):
         files = base_files()
         del files["/var/run/reboot-required"]
         del files["/var/run/reboot-required.pkgs"]
-        files["/boot/vmlinuz-99.0.0-1.el9.x86_64"] = ""
+        files["/boot/vmlinuz-6.8.0-51-generic"] = ""  # newer than the running 6.8.0-45-generic
+        files["/boot/vmlinuz-99.0.0-1.el9.x86_64"] = ""  # other flavour: not compared
         s = run_scenario(files, base_responses())
         self.assertEqual(s.get("PATCH.REBOOT_REQUIRED").key, "patch.reboot_required.kernel")
 

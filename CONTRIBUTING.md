@@ -4,29 +4,27 @@ Thank you for helping improve Mail Security Audit.
 
 ## Scope
 
-This project is a Bash-based audit tool for Linux mail servers. Contributions
-should preserve the default read-only behavior and avoid surprising changes to
-firewall, SSH, DNS, or mail server configuration.
+A read-only security and health audit for Linux mail servers, written in
+Python 3.9+ with the standard library only. Delivery analysis of single
+messages belongs to [miab-radar](https://github.com/Anton-Babaskin/miab-radar).
 
-## Development workflow
+## Workflow
 
-1. Fork the repository and create a feature branch.
-2. Keep changes focused and documented.
-3. Run local checks before opening a pull request:
+1. Create a feature branch; one stage per branch and pull request.
+2. Follow [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and [CLAUDE.md](CLAUDE.md).
+3. Run the checks on Linux (WSL2 or a container):
 
    ```bash
-   bash -n mail-sec-audit.sh
-   bash tests/smoke.sh
-   shellcheck mail-sec-audit.sh tests/*.sh
+   python3 -m unittest discover -s tests -t .
+   bash tests/smoke.sh && bash tests/wrapper.sh
+   ruff check . && mypy && shellcheck mail-sec-audit.sh tests/*.sh
    ```
 
-4. Update README or docs when behavior, flags, or safety guarantees change.
+4. Update both READMEs and the docs when behaviour, options or guarantees change.
 
 ## Pull request checklist
 
-- The script still runs in read-only mode by default.
-- New write operations require explicit user confirmation.
-- Shell syntax checks pass.
-- User-facing output is clear and actionable.
-- Sensitive data such as domains, IPs, logs, and credentials is not committed.
-
+- The default audit stays read-only; new commands are allowlist entries with a test.
+- Missing data gives UNKNOWN, not OK; non-applicable checks give N/A.
+- New texts exist in both catalogs (en, ru).
+- No real domains, addresses, Message-IDs or credentials in fixtures or examples.

@@ -17,7 +17,7 @@ MESSAGES: dict[str, str] = {
         "  --domain DOMAIN       Почтовый домен для MX/SPF/DMARC (включает DNS-запросы)\n"
         "  --dkim-selector SEL   DKIM-селектор для DNS-проверки\n"
         "  --platform NAME       auto, generic, mailcow, iredmail или mailinabox\n"
-        "  --format FORMAT       text, json или fleetops\n"
+        "  --format FORMAT       text, json (HealthResult FleetOps) или json-v1 (формат 2.3)\n"
         "  --lang LANG           ru или en; по умолчанию из LC_ALL, LC_MESSAGES, LANG\n"
         "  --redact              Скрыть e-mail, IP-адреса, имена хоста и пользователей\n"
         "  --deep                Медленные проверки: старые версии TLS, целостность пакетов, полный поиск SUID\n"
@@ -45,7 +45,7 @@ MESSAGES: dict[str, str] = {
     "cli.error.date": "{option} требует корректную дату YYYY-MM-DD",
     "cli.error.dns_name": "{option} содержит недопустимое имя: {value}",
     "cli.error.platform": "неизвестная платформа: {value}",
-    "cli.error.format": "--format поддерживает text, json или fleetops",
+    "cli.error.format": "--format поддерживает text, json или json-v1",
     "cli.error.lang": "--lang поддерживает ru или en",
     "cli.error.report_once": "--report и --append-report можно указать только один раз",
     "cli.error.json_append": "--append-report нельзя сочетать с JSON; используй отдельный файл",

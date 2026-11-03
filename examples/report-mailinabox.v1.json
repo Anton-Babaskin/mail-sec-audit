@@ -1,0 +1,1580 @@
+{
+  "schema_version": 1,
+  "tool": {
+    "name": "mail-sec-audit",
+    "version": "3.0.0"
+  },
+  "generated_at": "2026-11-02T12:00:00+00:00",
+  "target": {
+    "host": "mx1.example.org",
+    "domain": "example.org",
+    "platform": "mailinabox",
+    "platform_version": "v78"
+  },
+  "period": {
+    "from": "2026-10-26 00:00:00",
+    "to": "2026-11-02 12:00:00"
+  },
+  "result": {
+    "status": "review_required",
+    "exit_code": 1,
+    "counts": {
+      "pass": 35,
+      "info": 22,
+      "warning": 11,
+      "critical": 0
+    }
+  },
+  "findings": [
+    {
+      "id": "CTX.PRIVILEGES",
+      "severity": "pass",
+      "message": "Running as root: all local checks are available",
+      "remediation": null,
+      "status": "OK",
+      "section": "CTX",
+      "check": "CTX.PRIVILEGES",
+      "subject": null,
+      "source": "proc:euid",
+      "evidence": [
+        {
+          "source": "proc:euid",
+          "excerpt": [
+            "euid=0"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "CTX.FQDN",
+      "severity": "pass",
+      "message": "Host name mx1.example.org looks like an FQDN",
+      "remediation": null,
+      "status": "OK",
+      "section": "CTX",
+      "check": "CTX.FQDN",
+      "subject": null,
+      "source": "cmd:hostname -f",
+      "evidence": [
+        {
+          "source": "cmd:hostname -f",
+          "excerpt": [
+            "mx1.example.org"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "CTX.PLATFORM",
+      "severity": "info",
+      "message": "Platform: mailinabox v78",
+      "remediation": null,
+      "status": "INFO",
+      "section": "CTX",
+      "check": "CTX.PLATFORM",
+      "subject": null,
+      "source": "stack:detect",
+      "evidence": [
+        {
+          "source": "stack:detect",
+          "excerpt": [
+            "platform mailinabox (auto)",
+            "mta postfix",
+            "imap dovecot",
+            "cmd:git -c core.fsmonitor=false --no-pager --no-optional-locks -C /root/mailinabox describe --always --abbrev=0"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "PATCH.PENDING_UPDATES",
+      "severity": "pass",
+      "message": "No pending updates according to the apt cache",
+      "remediation": null,
+      "status": "OK",
+      "section": "PATCH",
+      "check": "PATCH.PENDING_UPDATES",
+      "subject": null,
+      "source": "cmd:apt-get -s -o Debug::NoLocking=1 dist-upgrade",
+      "evidence": [
+        {
+          "source": "cmd:apt-get -s -o Debug::NoLocking=1 dist-upgrade",
+          "excerpt": []
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "PATCH.APT_METADATA_AGE",
+      "severity": "warning",
+      "message": "No data: /var/lib/apt/lists returned nothing usable",
+      "remediation": "Run the audit as root or install the missing tool, then repeat this check.",
+      "status": "UNKNOWN",
+      "section": "PATCH",
+      "check": "PATCH.APT_METADATA_AGE",
+      "subject": null,
+      "source": "file:/var/lib/apt/lists",
+      "evidence": [
+        {
+          "source": "file:/var/lib/apt/lists",
+          "excerpt": []
+        }
+      ],
+      "next_step": "Run the audit as root or install the missing tool, then repeat this check.",
+      "reason": "no_data"
+    },
+    {
+      "id": "PATCH.AUTO_UPDATES",
+      "severity": "info",
+      "message": "Automatic updates are not enabled (apt)",
+      "remediation": null,
+      "status": "INFO",
+      "section": "PATCH",
+      "check": "PATCH.AUTO_UPDATES",
+      "subject": null,
+      "source": "file:/etc/apt/apt.conf.d",
+      "evidence": [
+        {
+          "source": "file:/etc/apt/apt.conf.d",
+          "excerpt": []
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "PATCH.REBOOT_REQUIRED",
+      "severity": "pass",
+      "message": "No pending reboot (running kernel 6.8.0-45-generic)",
+      "remediation": null,
+      "status": "OK",
+      "section": "PATCH",
+      "check": "PATCH.REBOOT_REQUIRED",
+      "subject": null,
+      "source": "file:/boot",
+      "evidence": [
+        {
+          "source": "file:/boot",
+          "excerpt": [
+            "running 6.8.0-45-generic"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "STACK.MTA_DETECTED",
+      "severity": "info",
+      "message": "MTA: postfix",
+      "remediation": null,
+      "status": "INFO",
+      "section": "STACK",
+      "check": "STACK.MTA_DETECTED",
+      "subject": null,
+      "source": "stack:detect",
+      "evidence": [
+        {
+          "source": "stack:detect",
+          "excerpt": [
+            "mta postfix"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "STACK.IMAP_DETECTED",
+      "severity": "info",
+      "message": "IMAP/POP3: dovecot",
+      "remediation": null,
+      "status": "INFO",
+      "section": "STACK",
+      "check": "STACK.IMAP_DETECTED",
+      "subject": null,
+      "source": "stack:detect",
+      "evidence": [
+        {
+          "source": "stack:detect",
+          "excerpt": [
+            "imap dovecot"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "STACK.SERVICE@postfix.service",
+      "severity": "pass",
+      "message": "postfix.service is running",
+      "remediation": null,
+      "status": "OK",
+      "section": "STACK",
+      "check": "STACK.SERVICE",
+      "subject": "postfix.service",
+      "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+      "evidence": [
+        {
+          "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+          "excerpt": [
+            "postfix.service: active"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "STACK.SERVICE@dovecot.service",
+      "severity": "pass",
+      "message": "dovecot.service is running",
+      "remediation": null,
+      "status": "OK",
+      "section": "STACK",
+      "check": "STACK.SERVICE",
+      "subject": "dovecot.service",
+      "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+      "evidence": [
+        {
+          "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+          "excerpt": [
+            "dovecot.service: active"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "STACK.SERVICE@opendkim.service",
+      "severity": "pass",
+      "message": "opendkim.service is running",
+      "remediation": null,
+      "status": "OK",
+      "section": "STACK",
+      "check": "STACK.SERVICE",
+      "subject": "opendkim.service",
+      "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+      "evidence": [
+        {
+          "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+          "excerpt": [
+            "opendkim.service: active"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "STACK.SERVICE@spampd.service",
+      "severity": "warning",
+      "message": "spampd.service is not running (failed)",
+      "remediation": "Check the service status and its log, then start it.",
+      "status": "WARN",
+      "section": "STACK",
+      "check": "STACK.SERVICE",
+      "subject": "spampd.service",
+      "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+      "evidence": [
+        {
+          "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+          "excerpt": [
+            "spampd.service: failed"
+          ]
+        }
+      ],
+      "next_step": "Check the service status and its log, then start it.",
+      "reason": null
+    },
+    {
+      "id": "STACK.SERVICE@nginx.service",
+      "severity": "pass",
+      "message": "nginx.service is running",
+      "remediation": null,
+      "status": "OK",
+      "section": "STACK",
+      "check": "STACK.SERVICE",
+      "subject": "nginx.service",
+      "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+      "evidence": [
+        {
+          "source": "cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix.service dovecot.service opendkim.service postgrey.service spampd.service nsd.service nginx.service",
+          "excerpt": [
+            "nginx.service: active"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "STACK.CONTAINERS_HEALTH",
+      "severity": "info",
+      "message": "Not applicable: no compose project",
+      "remediation": null,
+      "status": "N/A",
+      "section": "STACK",
+      "check": "STACK.CONTAINERS_HEALTH",
+      "subject": null,
+      "source": null,
+      "evidence": [],
+      "next_step": null,
+      "reason": "not_applicable"
+    },
+    {
+      "id": "SSH.ROOT_LOGIN",
+      "severity": "warning",
+      "message": "SSH: root may log in with a key; a separate sudo user is safer",
+      "remediation": "Set PermitRootLogin no, keep a second session open and check access before reloading sshd.",
+      "status": "WARN",
+      "section": "SSH",
+      "check": "SSH.ROOT_LOGIN",
+      "subject": null,
+      "source": "cmd:sshd -T",
+      "evidence": [
+        {
+          "source": "cmd:sshd -T",
+          "excerpt": [
+            "permitrootlogin prohibit-password",
+            "passwordauthentication no"
+          ]
+        }
+      ],
+      "next_step": "Set PermitRootLogin no, keep a second session open and check access before reloading sshd.",
+      "reason": null
+    },
+    {
+      "id": "SSH.PASSWORD_AUTH",
+      "severity": "pass",
+      "message": "SSH: password authentication is disabled",
+      "remediation": null,
+      "status": "OK",
+      "section": "SSH",
+      "check": "SSH.PASSWORD_AUTH",
+      "subject": null,
+      "source": "cmd:sshd -T",
+      "evidence": [
+        {
+          "source": "cmd:sshd -T",
+          "excerpt": [
+            "passwordauthentication no"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "SSH.PUBKEY_AUTH",
+      "severity": "pass",
+      "message": "SSH: public key authentication is enabled",
+      "remediation": null,
+      "status": "OK",
+      "section": "SSH",
+      "check": "SSH.PUBKEY_AUTH",
+      "subject": null,
+      "source": "cmd:sshd -T",
+      "evidence": [
+        {
+          "source": "cmd:sshd -T",
+          "excerpt": [
+            "pubkeyauthentication yes"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "SSH.KBD_INTERACTIVE",
+      "severity": "pass",
+      "message": "SSH: keyboard-interactive authentication is disabled",
+      "remediation": null,
+      "status": "OK",
+      "section": "SSH",
+      "check": "SSH.KBD_INTERACTIVE",
+      "subject": null,
+      "source": "cmd:sshd -T",
+      "evidence": [
+        {
+          "source": "cmd:sshd -T",
+          "excerpt": [
+            "kbdinteractiveauthentication no"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "SSH.X11_FORWARDING",
+      "severity": "pass",
+      "message": "SSH: X11 forwarding is disabled",
+      "remediation": null,
+      "status": "OK",
+      "section": "SSH",
+      "check": "SSH.X11_FORWARDING",
+      "subject": null,
+      "source": "cmd:sshd -T",
+      "evidence": [
+        {
+          "source": "cmd:sshd -T",
+          "excerpt": [
+            "x11forwarding no"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "SSH.MAX_AUTH_TRIES",
+      "severity": "pass",
+      "message": "SSH: MaxAuthTries 6",
+      "remediation": null,
+      "status": "OK",
+      "section": "SSH",
+      "check": "SSH.MAX_AUTH_TRIES",
+      "subject": null,
+      "source": "cmd:sshd -T",
+      "evidence": [
+        {
+          "source": "cmd:sshd -T",
+          "excerpt": [
+            "maxauthtries 6"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "NET.LISTENERS",
+      "severity": "pass",
+      "message": "No unexpected non-loopback listeners (4 public sockets match the expected list)",
+      "remediation": null,
+      "status": "OK",
+      "section": "NET",
+      "check": "NET.LISTENERS",
+      "subject": null,
+      "source": "cmd:ss -H -l -n -t -u",
+      "evidence": [
+        {
+          "source": "cmd:ss -H -l -n -t -u",
+          "excerpt": [
+            "tcp/0.0.0.0:25",
+            "tcp/0.0.0.0:465",
+            "tcp/0.0.0.0:993",
+            "tcp/0.0.0.0:12340"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "FW.HOST_FIREWALL",
+      "severity": "pass",
+      "message": "Host firewall is active: ufw",
+      "remediation": null,
+      "status": "OK",
+      "section": "FW",
+      "check": "FW.HOST_FIREWALL",
+      "subject": null,
+      "source": "cmd:ufw status verbose",
+      "evidence": [
+        {
+          "source": "cmd:ufw status verbose",
+          "excerpt": [
+            "ufw: active"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "BRUTE.PROTECTION",
+      "severity": "pass",
+      "message": "Brute-force protection is active: fail2ban",
+      "remediation": null,
+      "status": "OK",
+      "section": "BRUTE",
+      "check": "BRUTE.PROTECTION",
+      "subject": null,
+      "source": "cmd:fail2ban-client status",
+      "evidence": [
+        {
+          "source": "cmd:fail2ban-client status",
+          "excerpt": [
+            "fail2ban: pong"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "BRUTE.FAIL2BAN",
+      "severity": "pass",
+      "message": "Fail2ban answers",
+      "remediation": null,
+      "status": "OK",
+      "section": "BRUTE",
+      "check": "BRUTE.FAIL2BAN",
+      "subject": null,
+      "source": "cmd:fail2ban-client status",
+      "evidence": [
+        {
+          "source": "cmd:fail2ban-client status",
+          "excerpt": [
+            "pong"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "BRUTE.FAIL2BAN_JAILS",
+      "severity": "info",
+      "message": "Fail2ban: 3 jail(s), 3 address(es) banned now",
+      "remediation": null,
+      "status": "INFO",
+      "section": "BRUTE",
+      "check": "BRUTE.FAIL2BAN_JAILS",
+      "subject": null,
+      "source": "cmd:fail2ban-client status",
+      "evidence": [
+        {
+          "source": "cmd:fail2ban-client status",
+          "excerpt": [
+            "dovecot: banned=? total=?",
+            "postfix-sasl: banned=? total=?",
+            "sshd: banned=3 total=41"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "AUTH.SSH_FAILURES",
+      "severity": "info",
+      "message": "SSH: 0 failed, 0 invalid users, 0 accepted logins (about 0 failures per day)",
+      "remediation": null,
+      "status": "INFO",
+      "section": "AUTH",
+      "check": "AUTH.SSH_FAILURES",
+      "subject": null,
+      "source": "log:ssh",
+      "evidence": [
+        {
+          "source": "log:ssh",
+          "excerpt": [
+            "failed=0 invalid_user=0 accepted=0"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "AUTH.MAIL_FAILURES",
+      "severity": "info",
+      "message": "Mail authentication failures: 2 (about 0 per day)",
+      "remediation": null,
+      "status": "INFO",
+      "section": "AUTH",
+      "check": "AUTH.MAIL_FAILURES",
+      "subject": null,
+      "source": "log:mail",
+      "evidence": [
+        {
+          "source": "log:mail",
+          "excerpt": [
+            "failed=2"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "FLOW.STATS",
+      "severity": "info",
+      "message": "Postfix: 1 outbound message(s), 1 external delivery(ies), 1 locally delivered",
+      "remediation": null,
+      "status": "INFO",
+      "section": "FLOW",
+      "check": "FLOW.STATS",
+      "subject": null,
+      "source": "log:mail",
+      "evidence": [
+        {
+          "source": "log:mail",
+          "excerpt": [
+            "lines in period 8 of 8",
+            "unparsed postfix lines 0"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "MTA.RELAY_RESTRICTIONS",
+      "severity": "pass",
+      "message": "Postfix refuses relaying for unauthorised clients on port 25 (smtp/inet)",
+      "remediation": null,
+      "status": "OK",
+      "section": "MTA",
+      "check": "MTA.RELAY_RESTRICTIONS",
+      "subject": null,
+      "source": "cmd:postconf -x smtpd_relay_restrictions smtpd_recipient_restrictions mynetworks mynetworks_style virtual_mailbox_base mail_version",
+      "evidence": [
+        {
+          "source": "cmd:postconf -x smtpd_relay_restrictions smtpd_recipient_restrictions mynetworks mynetworks_style virtual_mailbox_base mail_version",
+          "excerpt": [
+            "port 25: smtp inet -> smtpd (smtp/inet)",
+            "smtpd_relay_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination",
+            "smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unlisted_recipient"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "MTA.MYNETWORKS",
+      "severity": "pass",
+      "message": "Postfix mynetworks does not include the Internet",
+      "remediation": null,
+      "status": "OK",
+      "section": "MTA",
+      "check": "MTA.MYNETWORKS",
+      "subject": null,
+      "source": "cmd:postconf -x smtpd_relay_restrictions smtpd_recipient_restrictions mynetworks mynetworks_style virtual_mailbox_base mail_version",
+      "evidence": [
+        {
+          "source": "cmd:postconf -x smtpd_relay_restrictions smtpd_recipient_restrictions mynetworks mynetworks_style virtual_mailbox_base mail_version",
+          "excerpt": [
+            "mynetworks = 127.0.0.0/8 [::1]/128"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "MTA.EXIM_RELAY_HOSTS",
+      "severity": "info",
+      "message": "Not applicable: the MTA is not Exim",
+      "remediation": null,
+      "status": "N/A",
+      "section": "MTA",
+      "check": "MTA.EXIM_RELAY_HOSTS",
+      "subject": null,
+      "source": null,
+      "evidence": [],
+      "next_step": null,
+      "reason": "not_applicable"
+    },
+    {
+      "id": "MTA.OPENSMTPD_RELAY",
+      "severity": "info",
+      "message": "Not applicable: the MTA is not OpenSMTPD",
+      "remediation": null,
+      "status": "N/A",
+      "section": "MTA",
+      "check": "MTA.OPENSMTPD_RELAY",
+      "subject": null,
+      "source": null,
+      "evidence": [],
+      "next_step": null,
+      "reason": "not_applicable"
+    },
+    {
+      "id": "MTA.SENDMAIL_RELAY",
+      "severity": "info",
+      "message": "Not applicable: the MTA is not Sendmail",
+      "remediation": null,
+      "status": "N/A",
+      "section": "MTA",
+      "check": "MTA.SENDMAIL_RELAY",
+      "subject": null,
+      "source": null,
+      "evidence": [],
+      "next_step": null,
+      "reason": "not_applicable"
+    },
+    {
+      "id": "MTA.EXTERNAL_TEST",
+      "severity": "info",
+      "message": "A local audit cannot prove there is no open relay; test from an external untrusted host",
+      "remediation": null,
+      "status": "INFO",
+      "section": "MTA",
+      "check": "MTA.EXTERNAL_TEST",
+      "subject": null,
+      "source": "note",
+      "evidence": [
+        {
+          "source": "note",
+          "excerpt": [
+            "local configuration cannot prove the absence of an open relay"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "TLS.HANDSHAKE@25",
+      "severity": "warning",
+      "message": "Port 25: TLS handshake failed (STARTTLS not offered)",
+      "remediation": "Check the TLS configuration of the service on this port.",
+      "status": "WARN",
+      "section": "TLS",
+      "check": "TLS.HANDSHAKE",
+      "subject": "25",
+      "source": "tls:127.0.0.1:25",
+      "evidence": [
+        {
+          "source": "tls:127.0.0.1:25",
+          "excerpt": [
+            "STARTTLS not offered"
+          ]
+        }
+      ],
+      "next_step": "Check the TLS configuration of the service on this port.",
+      "reason": null
+    },
+    {
+      "id": "TLS.HANDSHAKE@465",
+      "severity": "pass",
+      "message": "Port 465: TLS handshake (TLSv1.3)",
+      "remediation": null,
+      "status": "OK",
+      "section": "TLS",
+      "check": "TLS.HANDSHAKE",
+      "subject": "465",
+      "source": "tls:127.0.0.1:465",
+      "evidence": [
+        {
+          "source": "tls:127.0.0.1:465",
+          "excerpt": [
+            "TLSv1.3"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "TLS.HANDSHAKE@993",
+      "severity": "pass",
+      "message": "Port 993: TLS handshake (TLSv1.3)",
+      "remediation": null,
+      "status": "OK",
+      "section": "TLS",
+      "check": "TLS.HANDSHAKE",
+      "subject": "993",
+      "source": "tls:127.0.0.1:993",
+      "evidence": [
+        {
+          "source": "tls:127.0.0.1:993",
+          "excerpt": [
+            "TLSv1.3"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "TLS.CERT_EXPIRY@465",
+      "severity": "pass",
+      "message": "Port 465: certificate is valid for 57 more day(s)",
+      "remediation": null,
+      "status": "OK",
+      "section": "TLS",
+      "check": "TLS.CERT_EXPIRY",
+      "subject": "465",
+      "source": "tls:127.0.0.1:465",
+      "evidence": [
+        {
+          "source": "tls:127.0.0.1:465",
+          "excerpt": [
+            "subject CN = mx1.example.org",
+            "issuer C = US, O = Let's Encrypt, CN = R11",
+            "notAfter 2026-12-30 00:00 UTC"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "TLS.CERT_EXPIRY@993",
+      "severity": "pass",
+      "message": "Port 993: certificate is valid for 57 more day(s)",
+      "remediation": null,
+      "status": "OK",
+      "section": "TLS",
+      "check": "TLS.CERT_EXPIRY",
+      "subject": "993",
+      "source": "tls:127.0.0.1:993",
+      "evidence": [
+        {
+          "source": "tls:127.0.0.1:993",
+          "excerpt": [
+            "subject CN = mx1.example.org",
+            "issuer C = US, O = Let's Encrypt, CN = R11",
+            "notAfter 2026-12-30 00:00 UTC"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "TLS.CERT_NAME@465",
+      "severity": "pass",
+      "message": "Port 465: certificate covers mx1.example.org",
+      "remediation": null,
+      "status": "OK",
+      "section": "TLS",
+      "check": "TLS.CERT_NAME",
+      "subject": "465",
+      "source": "tls:127.0.0.1:465",
+      "evidence": [
+        {
+          "source": "tls:127.0.0.1:465",
+          "excerpt": [
+            "subject CN = mx1.example.org",
+            "checkhost mx1.example.org"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "TLS.CERT_NAME@993",
+      "severity": "pass",
+      "message": "Port 993: certificate covers mx1.example.org",
+      "remediation": null,
+      "status": "OK",
+      "section": "TLS",
+      "check": "TLS.CERT_NAME",
+      "subject": "993",
+      "source": "tls:127.0.0.1:993",
+      "evidence": [
+        {
+          "source": "tls:127.0.0.1:993",
+          "excerpt": [
+            "subject CN = mx1.example.org",
+            "checkhost mx1.example.org"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "TLS.DOVECOT_MIN_PROTOCOL",
+      "severity": "pass",
+      "message": "Dovecot ssl_min_protocol = TLSv1.2",
+      "remediation": null,
+      "status": "OK",
+      "section": "TLS",
+      "check": "TLS.DOVECOT_MIN_PROTOCOL",
+      "subject": null,
+      "source": "cmd:doveconf -h",
+      "evidence": [
+        {
+          "source": "cmd:doveconf -h",
+          "excerpt": [
+            "ssl_min_protocol = TLSv1.2",
+            "ssl = required"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "DNS.MX",
+      "severity": "pass",
+      "message": "example.org has 1 MX record(s)",
+      "remediation": null,
+      "status": "OK",
+      "section": "DNS",
+      "check": "DNS.MX",
+      "subject": null,
+      "source": "dns:MX example.org",
+      "evidence": [
+        {
+          "source": "dns:MX example.org",
+          "excerpt": [
+            "10 mx1.example.org"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "DNS.SPF",
+      "severity": "pass",
+      "message": "SPF is published as one record",
+      "remediation": null,
+      "status": "OK",
+      "section": "DNS",
+      "check": "DNS.SPF",
+      "subject": null,
+      "source": "dns:TXT example.org",
+      "evidence": [
+        {
+          "source": "dns:TXT example.org",
+          "excerpt": [
+            "v=spf1 mx -all"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "DNS.DMARC",
+      "severity": "warning",
+      "message": "DMARC policy is p=none (monitoring only)",
+      "remediation": "Publish _dmarc with p=quarantine or p=reject after reviewing reports.",
+      "status": "WARN",
+      "section": "DNS",
+      "check": "DNS.DMARC",
+      "subject": null,
+      "source": "dns:TXT _dmarc.example.org",
+      "evidence": [
+        {
+          "source": "dns:TXT _dmarc.example.org",
+          "excerpt": [
+            "v=DMARC1; p=none"
+          ]
+        }
+      ],
+      "next_step": "Publish _dmarc with p=quarantine or p=reject after reviewing reports.",
+      "reason": null
+    },
+    {
+      "id": "DNS.DKIM",
+      "severity": "info",
+      "message": "Not requested: pass --dkim-selector for the DKIM check",
+      "remediation": null,
+      "status": "N/A",
+      "section": "DNS",
+      "check": "DNS.DKIM",
+      "subject": null,
+      "source": null,
+      "evidence": [],
+      "next_step": null,
+      "reason": "not_requested"
+    },
+    {
+      "id": "DNS.DKIM_KEY",
+      "severity": "info",
+      "message": "Not requested: pass --dkim-selector for the DKIM check",
+      "remediation": null,
+      "status": "N/A",
+      "section": "DNS",
+      "check": "DNS.DKIM_KEY",
+      "subject": null,
+      "source": null,
+      "evidence": [],
+      "next_step": null,
+      "reason": "not_requested"
+    },
+    {
+      "id": "DNS.MTA_STS",
+      "severity": "info",
+      "message": "No MTA-STS TXT record",
+      "remediation": null,
+      "status": "INFO",
+      "section": "DNS",
+      "check": "DNS.MTA_STS",
+      "subject": null,
+      "source": "dns:TXT _mta-sts.example.org",
+      "evidence": [
+        {
+          "source": "dns:TXT _mta-sts.example.org",
+          "excerpt": [
+            "NXDOMAIN"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "DNS.TLS_RPT",
+      "severity": "warning",
+      "message": "Not checked: TXT _smtp._tls.example.org failed (DNS status SERVFAIL)",
+      "remediation": "Run the audit as root or install the missing tool, then repeat this check.",
+      "status": "UNKNOWN",
+      "section": "DNS",
+      "check": "DNS.TLS_RPT",
+      "subject": null,
+      "source": "dns:TXT _smtp._tls.example.org",
+      "evidence": [
+        {
+          "source": "dns:TXT _smtp._tls.example.org",
+          "excerpt": []
+        }
+      ],
+      "next_step": "Run the audit as root or install the missing tool, then repeat this check.",
+      "reason": "command_failed"
+    },
+    {
+      "id": "DNS.PTR@192.0.2.25",
+      "severity": "pass",
+      "message": "PTR of 192.0.2.25 is mx1.example.org",
+      "remediation": null,
+      "status": "OK",
+      "section": "DNS",
+      "check": "DNS.PTR",
+      "subject": "192.0.2.25",
+      "source": "dns:PTR 192.0.2.25",
+      "evidence": [
+        {
+          "source": "dns:PTR 192.0.2.25",
+          "excerpt": [
+            "mx1.example.org"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "USERS.UID0",
+      "severity": "pass",
+      "message": "Only one account has UID 0",
+      "remediation": null,
+      "status": "OK",
+      "section": "USERS",
+      "check": "USERS.UID0",
+      "subject": null,
+      "source": "file:/etc/passwd",
+      "evidence": [
+        {
+          "source": "file:/etc/passwd",
+          "excerpt": [
+            "root:0"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "USERS.EMPTY_PASSWORD",
+      "severity": "pass",
+      "message": "No accounts without a password",
+      "remediation": null,
+      "status": "OK",
+      "section": "USERS",
+      "check": "USERS.EMPTY_PASSWORD",
+      "subject": null,
+      "source": "cmd:passwd -S -a",
+      "evidence": [
+        {
+          "source": "cmd:passwd -S -a",
+          "excerpt": []
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "USERS.INTERACTIVE_ACCOUNTS",
+      "severity": "info",
+      "message": "1 account(s) have a login shell",
+      "remediation": null,
+      "status": "INFO",
+      "section": "USERS",
+      "check": "USERS.INTERACTIVE_ACCOUNTS",
+      "subject": null,
+      "source": "file:/etc/passwd",
+      "evidence": [
+        {
+          "source": "file:/etc/passwd",
+          "excerpt": [
+            "root uid=0 home=/root shell=/bin/bash"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "USERS.SUDO_NOPASSWD",
+      "severity": "pass",
+      "message": "No sudo rules with NOPASSWD",
+      "remediation": null,
+      "status": "OK",
+      "section": "USERS",
+      "check": "USERS.SUDO_NOPASSWD",
+      "subject": null,
+      "source": "file:/etc/sudoers",
+      "evidence": [
+        {
+          "source": "file:/etc/sudoers",
+          "excerpt": []
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "KEYS.AUTHORIZED_KEYS",
+      "severity": "info",
+      "message": "0 authorized_keys file(s) with 0 key line(s)",
+      "remediation": null,
+      "status": "INFO",
+      "section": "KEYS",
+      "check": "KEYS.AUTHORIZED_KEYS",
+      "subject": null,
+      "source": "sshd:authorizedkeysfile .ssh/authorized_keys .ssh/authorized_keys2",
+      "evidence": [
+        {
+          "source": "sshd:authorizedkeysfile .ssh/authorized_keys .ssh/authorized_keys2",
+          "excerpt": []
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "DISK.USAGE",
+      "severity": "pass",
+      "message": "Filesystem usage is below 85% on 1 filesystem(s)",
+      "remediation": null,
+      "status": "OK",
+      "section": "DISK",
+      "check": "DISK.USAGE",
+      "subject": null,
+      "source": "cmd:df -P -B1 -x tmpfs -x devtmpfs -x squashfs -x overlay",
+      "evidence": [
+        {
+          "source": "cmd:df -P -B1 -x tmpfs -x devtmpfs -x squashfs -x overlay",
+          "excerpt": [
+            "40% /"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "DISK.INODES",
+      "severity": "pass",
+      "message": "Inode usage is below 85% on 1 filesystem(s)",
+      "remediation": null,
+      "status": "OK",
+      "section": "DISK",
+      "check": "DISK.INODES",
+      "subject": null,
+      "source": "cmd:df -P -i -x tmpfs -x devtmpfs -x squashfs -x overlay",
+      "evidence": [
+        {
+          "source": "cmd:df -P -i -x tmpfs -x devtmpfs -x squashfs -x overlay",
+          "excerpt": [
+            "5% /"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "DISK.MAIL_STORAGE",
+      "severity": "info",
+      "message": "Mailbox storage: /home/user-data/mail/mailboxes",
+      "remediation": null,
+      "status": "INFO",
+      "section": "DISK",
+      "check": "DISK.MAIL_STORAGE",
+      "subject": null,
+      "source": "cmd:df -P -B1 /home/user-data/mail/mailboxes",
+      "evidence": [
+        {
+          "source": "cmd:df -P -B1 /home/user-data/mail/mailboxes",
+          "excerpt": [
+            "Filesystem 1-blocks Used Available Capacity Mounted on",
+            "/dev/sda1 100 40 60 40% /"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "QUEUE.SIZE",
+      "severity": "pass",
+      "message": "Mail queue: 0 message(s)",
+      "remediation": null,
+      "status": "OK",
+      "section": "QUEUE",
+      "check": "QUEUE.SIZE",
+      "subject": null,
+      "source": "cmd:postqueue -j",
+      "evidence": [
+        {
+          "source": "cmd:postqueue -j",
+          "excerpt": [
+            "queued messages: 0"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "SUID.UNEXPECTED_LOCATIONS",
+      "severity": "warning",
+      "message": "Not checked: find is not installed",
+      "remediation": "Run the audit as root or install the missing tool, then repeat this check.",
+      "status": "UNKNOWN",
+      "section": "SUID",
+      "check": "SUID.UNEXPECTED_LOCATIONS",
+      "subject": null,
+      "source": "cmd:find /home /root /tmp /var/tmp /dev/shm -xdev -type f -perm -4000 -print0",
+      "evidence": [
+        {
+          "source": "cmd:find /home /root /tmp /var/tmp /dev/shm -xdev -type f -perm -4000 -print0",
+          "excerpt": []
+        }
+      ],
+      "next_step": "Run the audit as root or install the missing tool, then repeat this check.",
+      "reason": "missing_tool"
+    },
+    {
+      "id": "SUID.STANDARD_PATHS",
+      "severity": "warning",
+      "message": "Not checked: find is not installed",
+      "remediation": "Run the audit as root or install the missing tool, then repeat this check.",
+      "status": "UNKNOWN",
+      "section": "SUID",
+      "check": "SUID.STANDARD_PATHS",
+      "subject": null,
+      "source": "cmd:find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt -xdev -type f -perm -4000 -print0",
+      "evidence": [
+        {
+          "source": "cmd:find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt -xdev -type f -perm -4000 -print0",
+          "excerpt": []
+        }
+      ],
+      "next_step": "Run the audit as root or install the missing tool, then repeat this check.",
+      "reason": "missing_tool"
+    },
+    {
+      "id": "PERMS.WORLD_WRITABLE",
+      "severity": "warning",
+      "message": "Not checked: find is not installed",
+      "remediation": "Run the audit as root or install the missing tool, then repeat this check.",
+      "status": "UNKNOWN",
+      "section": "PERMS",
+      "check": "PERMS.WORLD_WRITABLE",
+      "subject": null,
+      "source": "cmd:find /etc /usr/local /opt -xdev ( -type f -o -type d ) -perm -0002 -printf %y %m %p\\0",
+      "evidence": [
+        {
+          "source": "cmd:find /etc /usr/local /opt -xdev ( -type f -o -type d ) -perm -0002 -printf %y %m %p\\0",
+          "excerpt": []
+        }
+      ],
+      "next_step": "Run the audit as root or install the missing tool, then repeat this check.",
+      "reason": "missing_tool"
+    },
+    {
+      "id": "MAC.FAILED_UNITS",
+      "severity": "warning",
+      "message": "Not checked: systemctl is not installed",
+      "remediation": "Run the audit as root or install the missing tool, then repeat this check.",
+      "status": "UNKNOWN",
+      "section": "MAC",
+      "check": "MAC.FAILED_UNITS",
+      "subject": null,
+      "source": "cmd:systemctl --failed --no-legend --plain --no-pager",
+      "evidence": [
+        {
+          "source": "cmd:systemctl --failed --no-legend --plain --no-pager",
+          "excerpt": []
+        }
+      ],
+      "next_step": "Run the audit as root or install the missing tool, then repeat this check.",
+      "reason": "missing_tool"
+    },
+    {
+      "id": "MAC.FRAMEWORK",
+      "severity": "info",
+      "message": "No AppArmor or SELinux enforcement detected",
+      "remediation": null,
+      "status": "INFO",
+      "section": "MAC",
+      "check": "MAC.FRAMEWORK",
+      "subject": null,
+      "source": "file:/sys",
+      "evidence": [
+        {
+          "source": "file:/sys",
+          "excerpt": [
+            "no AppArmor or SELinux enforcement detected"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "SCHED.INVENTORY",
+      "severity": "info",
+      "message": "Scheduled jobs: 0 in /etc/cron.d, 0 user crontab(s), 0 timer(s), 0 custom unit(s)",
+      "remediation": null,
+      "status": "INFO",
+      "section": "SCHED",
+      "check": "SCHED.INVENTORY",
+      "subject": null,
+      "source": "file:/etc/cron.d",
+      "evidence": [
+        {
+          "source": "file:/etc/cron.d",
+          "excerpt": []
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "BACKUP.INDICATORS",
+      "severity": "info",
+      "message": "2 backup indicator(s) found; success and restore are not verified",
+      "remediation": null,
+      "status": "INFO",
+      "section": "BACKUP",
+      "check": "BACKUP.INDICATORS",
+      "subject": null,
+      "source": "file:/etc/cron.*,/etc/systemd/system",
+      "evidence": [
+        {
+          "source": "file:/etc/cron.*,/etc/systemd/system",
+          "excerpt": [
+            "path /home/user-data/backup/encrypted",
+            "path /home/user-data/backup"
+          ]
+        }
+      ],
+      "next_step": null,
+      "reason": null
+    },
+    {
+      "id": "LOGIN.RECENT",
+      "severity": "warning",
+      "message": "Not checked: last is not installed",
+      "remediation": "Run the audit as root or install the missing tool, then repeat this check.",
+      "status": "UNKNOWN",
+      "section": "LOGIN",
+      "check": "LOGIN.RECENT",
+      "subject": null,
+      "source": "cmd:last -a -w -n 20",
+      "evidence": [
+        {
+          "source": "cmd:last -a -w -n 20",
+          "excerpt": []
+        }
+      ],
+      "next_step": "Run the audit as root or install the missing tool, then repeat this check.",
+      "reason": "missing_tool"
+    }
+  ],
+  "mail_statistics": {
+    "totals": {
+      "outbound_messages": 1,
+      "authenticated_submissions": 1,
+      "authenticated_outbound_messages": 1,
+      "outbound_deliveries": 1,
+      "incoming_messages": 1,
+      "incoming_deliveries": 1,
+      "bounced_deliveries": 0,
+      "deferred_deliveries": 0,
+      "expired_messages": 0,
+      "internal_hops": 0,
+      "outbound_bytes": 2048,
+      "tracked_queue_ids": 2
+    },
+    "delivery_status": {
+      "sent": 2
+    },
+    "top_users": [
+      {
+        "address": "alice@example.org",
+        "submitted": 1,
+        "messages": 1,
+        "deliveries": 1,
+        "bytes": 2048,
+        "first": "2026-11-01 10:00:00+00:00",
+        "last": "2026-11-01 10:00:03+00:00"
+      }
+    ],
+    "top_senders": [
+      {
+        "address": "alice@example.org",
+        "submitted": 0,
+        "messages": 1,
+        "deliveries": 1,
+        "bytes": 2048,
+        "first": "2026-11-01 10:00:00+00:00",
+        "last": "2026-11-01 10:00:03+00:00"
+      }
+    ],
+    "top_sender_domains": [
+      {
+        "domain": "example.org",
+        "count": 1
+      }
+    ],
+    "top_recipient_domains": [
+      {
+        "domain": "remote.example",
+        "count": 1
+      }
+    ],
+    "top_incoming_domains": [
+      {
+        "domain": "remote.example",
+        "count": 1
+      }
+    ],
+    "unparsed_postfix_lines": 0,
+    "period": {
+      "requested_from": "2026-10-26 00:00:00+00:00",
+      "requested_to": "2026-11-02 12:00:00+00:00",
+      "observed_from": "2026-11-01 10:00:00+00:00",
+      "observed_to": "2026-11-01 12:00:00+00:00"
+    },
+    "source": {
+      "lines_scanned": 8,
+      "timestamped_lines": 8,
+      "lines_in_period": 8
+    }
+  },
+  "filesystems": [
+    {
+      "filesystem": "/dev/sda1",
+      "bytes_total": 100,
+      "bytes_used": 40,
+      "bytes_available": 60,
+      "used_percent": 40,
+      "mountpoint": "/"
+    }
+  ],
+  "duration_ms": 4210,
+  "lang": "en",
+  "status_counts": {
+    "OK": 35,
+    "INFO": 16,
+    "WARN": 4,
+    "FAIL": 0,
+    "UNKNOWN": 7,
+    "N/A": 6
+  },
+  "auth_statistics": {
+    "ssh_failed": [],
+    "ssh_accepted": [],
+    "ssh_counts": {
+      "failed": 0,
+      "invalid_user": 0,
+      "accepted": 0
+    },
+    "mail_failed": [
+      [
+        "203.0.113.66",
+        2
+      ]
+    ]
+  },
+  "completeness": {
+    "sources": [
+      {
+        "source": "journal:ssh.service,sshd.service",
+        "state": "empty",
+        "detail": ""
+      },
+      {
+        "source": "log:/var/log/mail.log",
+        "state": "ok",
+        "detail": ""
+      },
+      {
+        "source": "file:/var/lib/apt/lists",
+        "state": "empty",
+        "detail": ""
+      },
+      {
+        "source": "dns:TXT _smtp._tls.example.org",
+        "state": "error",
+        "detail": "DNS status SERVFAIL"
+      },
+      {
+        "source": "cmd:find /home /root /tmp /var/tmp /dev/shm -xdev -type f -perm -4000 -print0",
+        "state": "missing",
+        "detail": ""
+      },
+      {
+        "source": "cmd:find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt -xdev -type f -perm -4000 -print0",
+        "state": "missing",
+        "detail": ""
+      },
+      {
+        "source": "cmd:find /etc /usr/local /opt -xdev ( -type f -o -type d ) -perm -0002 -printf %y %m %p\\0",
+        "state": "missing",
+        "detail": ""
+      },
+      {
+        "source": "cmd:systemctl --failed --no-legend --plain --no-pager",
+        "state": "missing",
+        "detail": ""
+      },
+      {
+        "source": "cmd:last -a -w -n 20",
+        "state": "missing",
+        "detail": ""
+      }
+    ],
+    "local_probes": [
+      "tls:127.0.0.1:25/smtp",
+      "tls:127.0.0.1:465",
+      "tls:127.0.0.1:993"
+    ],
+    "external_probes": [
+      "dns:MX example.org",
+      "dns:TXT example.org",
+      "dns:TXT _dmarc.example.org",
+      "dns:TXT _mta-sts.example.org",
+      "dns:TXT _smtp._tls.example.org",
+      "dns:A mx1.example.org",
+      "dns:PTR 192.0.2.25"
+    ]
+  }
+}
