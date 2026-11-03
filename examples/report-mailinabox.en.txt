@@ -1,0 +1,230 @@
+
+────────────────────────────────────────────────────────────────────────────────────────
+  MAIL SECURITY AUDIT  v3.0.0
+  host: mx1.example.org                          period: 2026-10-26 -> 2026-11-02
+────────────────────────────────────────────────────────────────────────────────────────
+
+[01] AUDIT CONTEXT
+────────────────────────────────────────────────────────────────────────────────────────
+  Date                     2026-11-02T12:00:00+00:00
+  Host                     mx1
+  FQDN / TLS name          mx1.example.org
+  Mail domain              example.org
+  Platform                 mailinabox (v78)
+  MTA                      postfix / dovecot
+  Analysis period          2026-10-26 00:00:00 -> 2026-11-02 12:00:00
+  Kernel                   Linux 6.8.0-45-generic x86_64
+  OS                       Ubuntu 22.04.5 LTS
+  Language                 en
+[  OK  ] Running as root: all local checks are available
+[  OK  ] Host name mx1.example.org looks like an FQDN
+[ INFO ] Platform: mailinabox v78
+
+[02] PATCHES / REBOOT
+────────────────────────────────────────────────────────────────────────────────────────
+[  OK  ] No pending updates according to the apt cache
+[ UNKN ] No data: /var/lib/apt/lists returned nothing usable
+         source: file:/var/lib/apt/lists
+         next: Run the audit as root or install the missing tool, then repeat this check.
+[ INFO ] Automatic updates are not enabled (apt)
+[  OK  ] No pending reboot (running kernel 6.8.0-45-generic)
+
+[03] MAIL PLATFORM / SERVICES
+────────────────────────────────────────────────────────────────────────────────────────
+[ INFO ] MTA: postfix
+[ INFO ] IMAP/POP3: dovecot
+[  OK  ] postfix.service is running
+[  OK  ] dovecot.service is running
+[  OK  ] opendkim.service is running
+[ WARN ] spampd.service is not running (failed)
+         source: cmd:systemctl show --property=Id,LoadState,ActiveState,UnitFileState -- fail2ban.service crowdsec.service sshguard.service dnf-automatic.timer dnf-automatic-install.timer dnf5-automatic.timer postfix…
+           | spampd.service: failed
+         next: Check the service status and its log, then start it.
+[  OK  ] nginx.service is running
+[ N/A  ] Not applicable: no compose project
+
+[04] SSHD EFFECTIVE CONFIG
+────────────────────────────────────────────────────────────────────────────────────────
+[ WARN ] SSH: root may log in with a key; a separate sudo user is safer
+         source: cmd:sshd -T
+           | permitrootlogin prohibit-password
+           | passwordauthentication no
+         next: Set PermitRootLogin no, keep a second session open and check access before reloading sshd.
+[  OK  ] SSH: password authentication is disabled
+[  OK  ] SSH: public key authentication is enabled
+[  OK  ] SSH: keyboard-interactive authentication is disabled
+[  OK  ] SSH: X11 forwarding is disabled
+[  OK  ] SSH: MaxAuthTries 6
+
+[05] LISTENING PORTS / PUBLIC BINDS
+────────────────────────────────────────────────────────────────────────────────────────
+[  OK  ] No unexpected non-loopback listeners (4 public sockets match the expected list)
+
+[06] FIREWALL
+────────────────────────────────────────────────────────────────────────────────────────
+[  OK  ] Host firewall is active: ufw
+
+[07] BRUTE-FORCE PROTECTION
+────────────────────────────────────────────────────────────────────────────────────────
+[  OK  ] Brute-force protection is active: fail2ban
+[  OK  ] Fail2ban answers
+[ INFO ] Fail2ban: 3 jail(s), 3 address(es) banned now
+
+[08] AUTHENTICATION EVENTS
+────────────────────────────────────────────────────────────────────────────────────────
+[ INFO ] SSH: 0 failed, 0 invalid users, 0 accepted logins (about 0 failures per day)
+[ INFO ] Mail authentication failures: 2 (about 0 per day)
+Top source addresses - SSH failures
+  #    EVENTS    SOURCE IP
+  no data
+Top source addresses - successful SSH logins
+  #    EVENTS    SOURCE IP
+  no data
+Top source addresses - mail authentication failures
+  #    EVENTS    SOURCE IP
+  1    2         203.0.113.66
+
+[09] MAIL FLOW ANALYTICS
+────────────────────────────────────────────────────────────────────────────────────────
+[ INFO ] Postfix: 1 outbound message(s), 1 external delivery(ies), 1 locally delivered
+  Observed log period      2026-11-01 10:00:00+00:00 -> 2026-11-01 12:00:00+00:00
+  Log lines                8 in period / 8 scanned
+  Outbound messages        1
+  Outbound deliveries      1
+  Authenticated submissions 1
+  Authenticated, delivered out 1
+  Locally delivered messages 1
+  Local deliveries         1
+  Bounced attempts         0
+  Deferred attempts        0
+  Content-filter hops (not counted) 0
+  Outbound bytes (queue size) 2048
+Top authenticated SMTP users
+  #    MAILBOX / SENDER                 SUBMITTED DELIVERED RECIPIENTS        BYTES
+  1    alice@example.org                        1         1          1         2048
+Top envelope senders (delivered out)
+  #    MAILBOX / SENDER                 SUBMITTED DELIVERED RECIPIENTS        BYTES
+  1    alice@example.org                        0         1          1         2048
+Top sender domains (messages delivered out)
+  #    DOMAIN                                                  COUNT
+  1    example.org                                                 1
+Top recipient domains (external deliveries)
+  #    DOMAIN                                                  COUNT
+  1    remote.example                                              1
+Top sender domains of locally delivered mail
+  #    DOMAIN                                                  COUNT
+  1    remote.example                                              1
+
+[10] MTA / RELAY CONFIGURATION
+────────────────────────────────────────────────────────────────────────────────────────
+[  OK  ] Postfix refuses relaying for unauthorised clients on port 25 (smtp/inet)
+[  OK  ] Postfix mynetworks does not include the Internet
+[ N/A  ] Not applicable: the MTA is not Exim
+[ N/A  ] Not applicable: the MTA is not OpenSMTPD
+[ N/A  ] Not applicable: the MTA is not Sendmail
+[ INFO ] A local audit cannot prove there is no open relay; test from an external untrusted host
+
+[11] TLS
+────────────────────────────────────────────────────────────────────────────────────────
+[ WARN ] Port 25: TLS handshake failed (STARTTLS not offered)
+         source: tls:127.0.0.1:25
+           | STARTTLS not offered
+         next: Check the TLS configuration of the service on this port.
+[  OK  ] Port 465: TLS handshake (TLSv1.3)
+[  OK  ] Port 993: TLS handshake (TLSv1.3)
+[  OK  ] Port 465: certificate is valid for 57 more day(s)
+[  OK  ] Port 993: certificate is valid for 57 more day(s)
+[  OK  ] Port 465: certificate covers mx1.example.org
+[  OK  ] Port 993: certificate covers mx1.example.org
+[  OK  ] Dovecot ssl_min_protocol = TLSv1.2
+
+[12] DNS / MAIL AUTHENTICATION RECORDS
+────────────────────────────────────────────────────────────────────────────────────────
+[  OK  ] example.org has 1 MX record(s)
+[  OK  ] SPF is published as one record
+[ WARN ] DMARC policy is p=none (monitoring only)
+         source: dns:TXT _dmarc.example.org
+           | v=DMARC1; p=none
+         next: Publish _dmarc with p=quarantine or p=reject after reviewing reports.
+[ N/A  ] Not requested: pass --dkim-selector for the DKIM check
+[ N/A  ] Not requested: pass --dkim-selector for the DKIM check
+[ INFO ] No MTA-STS TXT record
+[ UNKN ] Not checked: TXT _smtp._tls.example.org failed (DNS status SERVFAIL)
+         source: dns:TXT _smtp._tls.example.org
+         next: Run the audit as root or install the missing tool, then repeat this check.
+[  OK  ] PTR of 192.0.2.25 is mx1.example.org
+
+[13] LOCAL USERS / PRIVILEGES
+────────────────────────────────────────────────────────────────────────────────────────
+[  OK  ] Only one account has UID 0
+[  OK  ] No accounts without a password
+[ INFO ] 1 account(s) have a login shell
+[  OK  ] No sudo rules with NOPASSWD
+
+[14] SSH AUTHORIZED_KEYS
+────────────────────────────────────────────────────────────────────────────────────────
+[ INFO ] 0 authorized_keys file(s) with 0 key line(s)
+
+[15] DISK / FILESYSTEM CAPACITY
+────────────────────────────────────────────────────────────────────────────────────────
+[  OK  ] Filesystem usage is below 85% on 1 filesystem(s)
+[  OK  ] Inode usage is below 85% on 1 filesystem(s)
+[ INFO ] Mailbox storage: /home/user-data/mail/mailboxes
+
+[16] MAIL QUEUE
+────────────────────────────────────────────────────────────────────────────────────────
+[  OK  ] Mail queue: 0 message(s)
+
+[17] SUID / SGID
+────────────────────────────────────────────────────────────────────────────────────────
+[ UNKN ] Not checked: find is not installed
+         source: cmd:find /home /root /tmp /var/tmp /dev/shm -xdev -type f -perm -4000 -print0
+         next: Run the audit as root or install the missing tool, then repeat this check.
+[ UNKN ] Not checked: find is not installed
+         source: cmd:find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt -xdev -type f -perm -4000 -print0
+         next: Run the audit as root or install the missing tool, then repeat this check.
+
+[18] WORLD-WRITABLE PATHS
+────────────────────────────────────────────────────────────────────────────────────────
+[ UNKN ] Not checked: find is not installed
+         source: cmd:find /etc /usr/local /opt -xdev ( -type f -o -type d ) -perm -0002 -printf %y %m %p\0
+         next: Run the audit as root or install the missing tool, then repeat this check.
+
+[19] FAILED SERVICES / SECURITY FRAMEWORK
+────────────────────────────────────────────────────────────────────────────────────────
+[ UNKN ] Not checked: systemctl is not installed
+         source: cmd:systemctl --failed --no-legend --plain --no-pager
+         next: Run the audit as root or install the missing tool, then repeat this check.
+[ INFO ] No AppArmor or SELinux enforcement detected
+
+[20] CRON / SYSTEMD TIMERS
+────────────────────────────────────────────────────────────────────────────────────────
+[ INFO ] Scheduled jobs: 0 in /etc/cron.d, 0 user crontab(s), 0 timer(s), 0 custom unit(s)
+
+[21] BACKUP DETECTION
+────────────────────────────────────────────────────────────────────────────────────────
+[ INFO ] 2 backup indicator(s) found; success and restore are not verified
+
+[22] LAST LOGINS
+────────────────────────────────────────────────────────────────────────────────────────
+[ UNKN ] Not checked: last is not installed
+         source: cmd:last -a -w -n 20
+         next: Run the audit as root or install the missing tool, then repeat this check.
+
+[23] SUMMARY
+────────────────────────────────────────────────────────────────────────────────────────
+  OK        35   INFO      16   WARN       4   FAIL       0   UNKN       7   N/A        6
+
+  Data sources:
+    journal:ssh.service,sshd.service: empty
+    file:/var/lib/apt/lists: empty
+    dns:TXT _smtp._tls.example.org: error (DNS status SERVFAIL)
+    cmd:find /home /root /tmp /var/tmp /dev/shm -xdev -type f -perm -4000 -print0: not present
+    cmd:find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt -xdev -type f -perm -4000 -print0: not present
+    cmd:find /etc /usr/local /opt -xdev ( -type f -o -type d ) -perm -0002 -printf %y %m %p\0: not present
+    cmd:systemctl --failed --no-legend --plain --no-pager: not present
+    cmd:last -a -w -n 20: not present
+  Local probes: tls:127.0.0.1:25/smtp, tls:127.0.0.1:465, tls:127.0.0.1:993
+  External queries: dns:MX example.org, dns:TXT example.org, dns:TXT _dmarc.example.org, dns:TXT _mta-sts.example.org, dns:TXT _smtp._tls.example.org, dns:A mx1.example.org, dns:PTR 192.0.2.25
+
+  RESULT: REVIEW REQUIRED - no critical problems

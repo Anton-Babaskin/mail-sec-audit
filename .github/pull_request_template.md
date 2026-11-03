@@ -4,13 +4,14 @@
 
 ## Safety
 
-- [ ] Default audit mode remains read-only.
-- [ ] Any write action is explicit and confirmed by the user.
-- [ ] No sensitive logs, reports, IP lists, or credentials are included.
+- [ ] Default audit mode remains read-only; new commands are allowlist entries with a test.
+- [ ] Missing data gives UNKNOWN with a reason; non-applicable checks give N/A.
+- [ ] New texts are in both catalogs (en, ru).
+- [ ] No real domains, addresses, logs, reports or credentials are included.
 
-## Checks
+## Checks (Linux)
 
-- [ ] `bash -n mail-sec-audit.sh`
-- [ ] `bash tests/smoke.sh`
+- [ ] `python3 -m unittest discover -s tests -t .`
+- [ ] `bash tests/smoke.sh && bash tests/wrapper.sh`
+- [ ] `ruff check . && mypy`
 - [ ] `shellcheck mail-sec-audit.sh tests/*.sh`
-

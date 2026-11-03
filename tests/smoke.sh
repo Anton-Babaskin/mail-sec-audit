@@ -37,7 +37,7 @@ version_output="$(bash "$script" --version)"
 [[ "$version_output" =~ ^mail-sec-audit\ [0-9]+\.[0-9]+\.[0-9]+$ ]] \
   || fail "Expected --version to print a semantic version"
 
-for option in --hostname --domain --dkim-selector --from --to --platform --format --report --append-report; do
+for option in --hostname --domain --dkim-selector --from --to --platform --format --lang --report --append-report; do
   expect_status 64 "$option without a value" "$option"
 done
 
@@ -49,6 +49,7 @@ expect_status 64 "invalid --from date" --from 2026-02-31
 expect_status 64 "reversed period" --from 2026-08-18 --to 2026-08-17
 expect_status 64 "unknown platform" --platform exchange
 expect_status 64 "unknown output format" --format yaml
+expect_status 64 "unknown language" --lang de
 expect_status 64 "JSON append is invalid" --format json --append-report /tmp/unused-mail-audit.json
 expect_status 64 "JSON interactive mode is invalid" --format json --interactive
 expect_status 64 "duplicate report destinations" --report /tmp/one --report /tmp/two
@@ -77,7 +78,5 @@ trap cleanup_report_test EXIT
 ln -s "$report_test_root/existing.log" "$report_test_root/symlink.log"
 expect_status 73 "existing --report target" --report "$report_test_root/existing.log"
 expect_status 73 "symlink --report target" --report "$report_test_root/symlink.log"
-
-bash "$repo_root/tests/mail_stats.sh"
 
 echo "Smoke checks passed."

@@ -7,6 +7,105 @@ versioning where practical.
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-02
+
+The audit core is rewritten in Python 3.9+ (standard library only). The 2.3
+Bash script was used as the list of requirements; every check is mapped in
+`docs/check-mapping.md`. Background: `docs/review-2026-11.md`,
+`docs/adr/0001-architecture.md`.
+
+### Breaking
+
+- Python 3.9 or newer is required (previously optional). `mail-sec-audit.sh`
+  exits with 69 and a clear message when it is missing.
+- `--format json` now emits the FleetOps `HealthResult` document
+  (`schema_version "1.0"`, `host`, `collected_at`, `duration_ms`,
+  `overall_status`, `checks[]`). The 2.3 document is available as
+  `--format json-v1`.
+- Finding IDs are stable check names (`SSH.X11_FORWARDING`,
+  `TLS.CERT_EXPIRY@465`) instead of positional `SSH-004`, which changed
+  whenever an earlier check fired.
+- New exit code 75 when another audit holds the lock; signals exit with
+  128+N. Codes 0, 1, 2, 64, 69 and 73 keep their meaning; UNKNOWN results
+  give 1.
+
+### Added
+
+- Statuses `UNKNOWN` (with a reason: permission, missing tool, timeout,
+  truncation, no data, parse error, internal error) and `N/A`. One failing
+  check no longer stops the report.
+- Evidence, source and next step for every finding; data-source and probe
+  lists in every report.
+- `--lang ru|en`; all human-readable text comes from two catalogs.
+- Platform adapters: Mail-in-a-Box, Mailcow, iRedMail, generic (Postfix,
+  Exim, OpenSMTPD, Sendmail; Dovecot, Courier).
+- Checks: effective Postfix relay restrictions for port 25 with master.cf
+  overrides and rule order, broad mynetworks, OpenSMTPD and Sendmail relay
+  from configuration files, Dovecot minimum TLS protocol, TLS 1.1 next to TLS
+  1.0 in `--deep`, MX record, revoked DKIM keys, kernel newer than the running
+  one, container health of the compose project.
+- Single-file build `dist/mail-sec-audit.pyz` (`tools/build_zipapp.py`).
+- Example reports in `examples/`.
+
+### Changed
+
+- Every external command goes through an allowlisted runner with timeouts
+  and output limits; no shell. `docker exec` inner commands are checked.
+- Missing permissions, tools or data no longer produce OK or FAIL
+  (`sshd -T`, firewall, Fail2ban, journal, DNF).
+- Firewall: Docker chains and Fail2ban ban chains are not a host firewall.
+- Listeners: DHCP client sockets ignored; platform ports expected.
+- Postfix statistics: structural field parsing, loopback content-filter hops
+  not counted as external deliveries, Mailcow syslog names, memory bounded by
+  messages in flight; mail auth uses `rip=` only and ignores aborted logins.
+- Timestamps only at line start; syslog year from the file mtime; Docker
+  nanosecond timestamps on Python 3.9/3.10.
+- DNS keeps the response code: SERVFAIL and timeouts are UNKNOWN; TXT strings
+  are joined without spaces.
+- Queue size via `postqueue -j` (long queue IDs).
+- `--redact` validates IP addresses (clock times stay readable) and also hides
+  host names, the mail domain and local account names; statistics use keyed
+  per-run pseudonyms.
+- Reports are written through the descriptor opened with `O_EXCL|O_NOFOLLOW`;
+  append refuses hard links and group/other-writable files; text reports never
+  contain ANSI colors. `--interactive` works together with `--report`.
+- Interactive mode protects every established SSH session, not only
+  `SSH_CONNECTION`.
+- Non-security package updates are INFO; security updates WARN.
+
+### Removed
+
+- `lib/mail_stats.py` and the Bash implementation of the checks.
+- The separate YUM branch (on EL8+ `yum` is DNF; EL7 is unsupported).
+- Progress messages that were exported as INFO findings.
+- Reading `/etc/shadow` hashes (replaced by `passwd -S`).
+
+### Security
+
+- Includes the fixes from 2.3.1 and 2.3.2 (no execution of the Mail-in-a-Box
+  wrapper, isolated Python, signal handling, no `sendmail -bv`,
+  `rpm -Va --noscripts`).
+
+## [2.3.2] - 2026-11-02
+
+### Security
+
+- Every embedded `python3` call runs in isolated mode (`-I`). `python3 -` and
+  `python3 -c` put the current directory first on `sys.path`, so an
+  `ipaddress.py` or `json.py` in the directory the audit was started from ran
+  with root privileges.
+- `HUP`, `INT` and `TERM` now stop the audit with status 129/130/143. The old
+  trap removed the temporary directory and let the script continue, which
+  produced a report from missing files.
+- The Sendmail branch reads `/etc/mail/sendmail.mc` instead of running
+  `sendmail -d0.1 -bv root`. With Postfix's `sendmail` binary `-bv` sends a
+  verification report by mail, and other `/usr/sbin/sendmail` providers may
+  wait for a message on stdin.
+- `--deep` runs `rpm -Va --noscripts`; without it RPM executes each package's
+  `%verifyscript` as root.
+- `dnf check-update` writes its logs into the private temporary directory
+  instead of `/var/log/dnf*.log`.
+
 ## [2.3.1] - 2026-11-02
 
 ### Security
