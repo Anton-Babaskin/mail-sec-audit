@@ -4,7 +4,7 @@
 
 ### Read-only security posture for production Linux mail servers
 
-<img src="https://img.shields.io/badge/version-2.3.1-2563eb?style=for-the-badge" alt="Version 2.3.1">
+<img src="https://img.shields.io/badge/version-2.3.2-2563eb?style=for-the-badge" alt="Version 2.3.2">
 <img src="https://img.shields.io/badge/Bash-5%2B-121011?style=for-the-badge&logo=gnubash&logoColor=white" alt="Bash 5+">
 <img src="https://img.shields.io/badge/default-read--only-16a34a?style=for-the-badge" alt="Read-only by default">
 <img src="https://img.shields.io/github/license/Anton-Babaskin/mail-sec-audit?style=for-the-badge&color=0ea5e9" alt="License">

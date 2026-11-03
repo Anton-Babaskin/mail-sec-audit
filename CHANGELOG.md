@@ -7,6 +7,26 @@ versioning where practical.
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-11-02
+
+### Security
+
+- Every embedded `python3` call runs in isolated mode (`-I`). `python3 -` and
+  `python3 -c` put the current directory first on `sys.path`, so an
+  `ipaddress.py` or `json.py` in the directory the audit was started from ran
+  with root privileges.
+- `HUP`, `INT` and `TERM` now stop the audit with status 129/130/143. The old
+  trap removed the temporary directory and let the script continue, which
+  produced a report from missing files.
+- The Sendmail branch reads `/etc/mail/sendmail.mc` instead of running
+  `sendmail -d0.1 -bv root`. With Postfix's `sendmail` binary `-bv` sends a
+  verification report by mail, and other `/usr/sbin/sendmail` providers may
+  wait for a message on stdin.
+- `--deep` runs `rpm -Va --noscripts`; without it RPM executes each package's
+  `%verifyscript` as root.
+- `dnf check-update` writes its logs into the private temporary directory
+  instead of `/var/log/dnf*.log`.
+
 ## [2.3.1] - 2026-11-02
 
 ### Security
